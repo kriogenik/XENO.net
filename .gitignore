@@ -1,0 +1,39 @@
+# Секреты и сгенерированные ключи — НЕ коммитить
+secrets/*
+!secrets/README.md
+# dry-run may create nested files; keep ignored under secrets/
+
+# Локальные override (прод-IP и хосты)
+inventory/hosts.local.yml
+inventory/hosts.local.env
+*.local.yml
+*.local.env
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+.cursor/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+scripts/lib/__pycache__/
+
+# Local one-shot audit/probe helpers (may contain live secrets)
+scripts/_audit*
+scripts/_probe*
+scripts/_fix*
+scripts/_purge*
+scripts/_create_inbound*
+scripts/_cascade*
+scripts/_diag*
+scripts/_e2e*
+scripts/_ops*
+scripts/_check*
+scripts/_run*
+scripts/_test*
+scripts/_spot*

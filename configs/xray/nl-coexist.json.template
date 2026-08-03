@@ -1,0 +1,140 @@
+{
+  "api": {
+    "tag": "api",
+    "services": ["HandlerService", "StatsService"]
+  },
+  "stats": {},
+  "policy": {
+    "levels": {
+      "0": {
+        "statsUserUplink": true,
+        "statsUserDownlink": true
+      }
+    },
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
+  },
+  "log": {
+    "loglevel": "warning",
+    "access": "/var/log/xeno/nl-relay-access.log",
+    "error": "/var/log/xeno/nl-relay-error.log"
+  },
+  "inbounds": [
+    {
+      "tag": "api",
+      "listen": "127.0.0.1",
+      "port": 8080,
+      "protocol": "dokodemo-door",
+      "settings": {
+        "address": "127.0.0.1"
+      }
+    },
+    {
+      "tag": "xeno-relay-in",
+      "listen": "0.0.0.0",
+      "port": {{RELAY_PORT}},
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "{{RELAY_UUID}}",
+            "email": "xeno-relay-hop"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "reality",
+        "xhttpSettings": {
+          "path": "{{RELAY_PATH}}",
+          "mode": "auto"
+        },
+        "realitySettings": {
+          "show": false,
+          "dest": "{{RELAY_REALITY_DEST}}",
+          "xver": 0,
+          "serverNames": ["{{RELAY_REALITY_SNI}}"],
+          "privateKey": "{{RELAY_REALITY_PRIVATE_KEY}}",
+          "shortIds": ["{{RELAY_REALITY_SHORT_ID}}"]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
+      }
+    },
+    {
+      "tag": "xeno-direct-in",
+      "listen": "0.0.0.0",
+      "port": {{NL_DIRECT_PORT}},
+      "protocol": "vless",
+      "settings": {
+        "clients": {{NL_DIRECT_CLIENTS_JSON}},
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "reality",
+        "xhttpSettings": {
+          "path": "{{DIRECT_PATH}}",
+          "mode": "auto"
+        },
+        "realitySettings": {
+          "show": false,
+          "dest": "{{DIRECT_REALITY_DEST}}",
+          "xver": 0,
+          "serverNames": ["{{DIRECT_REALITY_SNI}}"],
+          "privateKey": "{{DIRECT_REALITY_PRIVATE_KEY}}",
+          "shortIds": ["{{DIRECT_REALITY_SHORT_ID}}"]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "api",
+      "protocol": "freedom",
+      "settings": {}
+    },
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      }
+    },
+    {
+      "tag": "block",
+      "protocol": "blackhole"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": ["api"],
+        "outboundTag": "api"
+      },
+      {
+        "type": "field",
+        "ip": ["geoip:private"],
+        "outboundTag": "block"
+      },
+      {
+        "type": "field",
+        "network": "tcp,udp",
+        "outboundTag": "direct"
+      }
+    ]
+  }
+}

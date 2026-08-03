@@ -1,0 +1,8 @@
+# Caddy (optional) — CDN Fallback / SelfSteal on nl-exit
+# Activate when DOMAIN is set. See docs/ops/runbook.md
+
+{$DOMAIN:443} {
+  # ACME / Cloudflare origin cert as preferred
+  reverse_proxy /cdn-ws* 127.0.0.1:10443
+  respond / "ok" 200
+}

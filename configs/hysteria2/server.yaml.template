@@ -1,0 +1,22 @@
+{
+  "listen": ":{{HY2_PORT}}",
+  "tls": {
+    "cert": "{{HY2_CERT}}",
+    "key": "{{HY2_KEY}}"
+  },
+  "auth": {
+    "type": "userpass",
+    "userpass": {{HY2_USERPASS_JSON}}
+  },
+  "masquerade": {
+    "type": "proxy",
+    "proxy": {
+      "url": "https://www.cloudflare.com",
+      "rewriteHost": true
+    }
+  },
+  "bandwidth": {
+    "up": "1 gbps",
+    "down": "1 gbps"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "log": {
+    "loglevel": "warning",
+    "access": "/var/log/xeno/nl-relay-access.log",
+    "error": "/var/log/xeno/nl-relay-error.log"
+  },
+  "inbounds": [
+    {
+      "tag": "xeno-relay-in",
+      "listen": "0.0.0.0",
+      "port": {{RELAY_PORT}},
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "{{RELAY_UUID}}",
+            "email": "xeno-relay-hop"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "reality",
+        "xhttpSettings": {
+          "path": "{{RELAY_PATH}}",
+          "mode": "auto"
+        },
+        "realitySettings": {
+          "show": false,
+          "dest": "{{RELAY_REALITY_DEST}}",
+          "xver": 0,
+          "serverNames": ["{{RELAY_REALITY_SNI}}"],
+          "privateKey": "{{RELAY_REALITY_PRIVATE_KEY}}",
+          "shortIds": ["{{RELAY_REALITY_SHORT_ID}}"]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIPv4"
+      }
+    },
+    {
+      "tag": "block",
+      "protocol": "blackhole"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "ip": ["geoip:private"],
+        "outboundTag": "block"
+      },
+      {
+        "type": "field",
+        "network": "tcp,udp",
+        "outboundTag": "direct"
+      }
+    ]
+  }
+}
