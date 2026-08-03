@@ -32,7 +32,7 @@ python scripts/deploy_bot.py
 
 В env: `SUB_PUBLIC_BASE=https://<NL_DOMAIN>:2080`, `SUB_TLS_CERT`, `SUB_TLS_KEY`.  
 Бот никогда не выдаёт `http://…` для подписки. Токены клиентов не ротируются — меняется только схема/хост в ссылке.  
-`xenonet-sub` отдаёт plain список `vless://` (`text/plain` + `Content-Disposition`); iOS Happ не принимает opaque base64 как тип контента.
+`xenonet-sub` отдаёт plain список `vless://` (`text/plain; charset=utf-8`, без `Content-Disposition: attachment`); iOS Happ не принимает opaque base64 как тип контента.
 
 ## Поведение sync
 

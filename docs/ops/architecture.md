@@ -29,7 +29,7 @@
 
 ## Подписка
 
-По умолчанию `SUB_FORMAT=links`: **plain** список `vless://` (не base64) + заголовки autoconnect / `Content-Disposition` для Happ.  
+По умолчанию `SUB_FORMAT=links`: **plain** список `vless://` (не base64) + заголовки Happ (Profile-Title, Announce, autoconnect). Без `Content-Disposition: attachment` — на iOS это провоцировало диалог скачивания / «в разрешении отказано».  
 `Content-Type`: `text/plain; charset=utf-8` (URI-list) или `application/json` (opt-in balancer).  
 iOS Happ строже Android: opaque base64 в теле → «неизвестный тип контента».  
 Профили с флагами стран в имени (география label).  

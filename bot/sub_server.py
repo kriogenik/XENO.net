@@ -78,7 +78,8 @@ async def handle_sub(request: web.Request) -> web.Response:
     bust = int(path.stat().st_mtime) if path.exists() else int(time.time())
     web_page = f"{sub_url(settings, token)}?v={bust}"
     # Happ iOS: plain URI list → text/plain; JSON balancer → application/json.
-    # Always send content-disposition (XTLS / Happ panel examples).
+    # No Content-Disposition: attachment — Safari/iOS may treat it as a file
+    # download and surface «в разрешении отказано» instead of importing into Happ.
     content_type = "application/json; charset=utf-8" if is_json else "text/plain; charset=utf-8"
     announce = (
         "XENO · автовыбор живого сервера. Удалите старую подписку и добавьте заново."
@@ -89,7 +90,6 @@ async def handle_sub(request: web.Request) -> web.Response:
         text=body,
         headers={
             "Content-Type": content_type,
-            "Content-Disposition": 'attachment; filename="xeno"',
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
             "Pragma": "no-cache",
             "Expires": "0",

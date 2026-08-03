@@ -6,7 +6,8 @@
 
 ## 2026-08
 
-- Sub/Happ iOS: тело подписки — plain `vless://` (+ `Content-Disposition`); legacy base64 на лету декодируется. Было: base64 + `text/plain` → на iOS «неизвестный тип контента».
+- Sub/Happ iOS: убран `Content-Disposition: attachment` (Safari мог уходить в «скачать файл» → «в разрешении отказано»); тело — plain `vless://`, `text/plain` + Profile-Title/Announce.
+- Sub/Happ iOS: тело подписки — plain `vless://` (не base64); legacy base64 на лету декодируется. Было: base64 + `text/plain` → на iOS «неизвестный тип контента».
 - Digests, smoke, admin alerts, hot-add (полный inbound для Xray 26 `adu`).  
 - UX: флаги профилей, второе устройство, онбординг, waitlist, expiry nags.  
 - Публикация репо: inventory → шаблон + `hosts.local.env`; доки на русском без прод-разведки; ссылка на git в Поддержке бота.
