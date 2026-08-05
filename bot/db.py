@@ -1017,6 +1017,19 @@ class Database:
             ).fetchone()
         return dict(row) if row else None
 
+    def diag_smoke_recent(self, limit: int = 2) -> list[dict[str, Any]]:
+        lim = max(1, min(int(limit), 20))
+        with self._conn() as con:
+            rows = con.execute(
+                """
+                SELECT * FROM diag_smoke_runs
+                ORDER BY created_at DESC, id DESC
+                LIMIT ?
+                """,
+                (lim,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
     def diag_user_day(self, day: str, email: str) -> dict[str, Any] | None:
         with self._conn() as con:
             row = con.execute(

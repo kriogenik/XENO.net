@@ -6,6 +6,13 @@
 
 ## 2026-08
 
+## 2026-08-05 (SelfSteal nginx + cascade_split)
+
+- SelfSteal на NL: **dedicated nginx** (`/etc/xeno/steal-nginx.conf`, unit `xeno-steal-nl`) вместо Python `ThreadingTCPServer` — устраняет клины :9443 под Reality-пробами.
+- Миграция: `scripts/migrate_steal_nginx.py` (идемпотентно; sibling nginx/sites не трогает).
+- Алерт `cascade_split`: RU accepts есть, hop quiet ≥45 мин при здоровых steal/relay.
+- Принципы: [principles.md](principles.md).
+
 ## 2026-08-05 (observability)
 
 - Единый ops-журнал `/var/log/xeno/events.jsonl` (smoke, steal-watch restart+reason, sync_all start/end/error, alerts, sub 404, bot unhandled, support flood, godmode, sacred denial, deploy).
@@ -13,6 +20,12 @@
 - Steal watchdog → `python -m diag.steal_watch` (лог причины перед restart).
 - Alert `reality_handshake_spike` (≥100/день).
 - Docs: [observability.md](observability.md). Logrotate покрывает `events.jsonl`.
+
+## 2026-08-05 (observability harden)
+
+- Smoke: `xenonet-bot` + `xenonet-sub` в critical.
+- Alerts: `unit_sub`, `sub_404_spike` (≥30/ч).
+- `sub_404` events rate-limited 1/min per IP.
 
 ## 2026-08-05 (alerts stability)
 

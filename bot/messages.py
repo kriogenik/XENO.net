@@ -66,9 +66,9 @@ def _header(title: str | None = None) -> str:
 def _profile_hint() -> str:
     return (
         "<b>В Happ</b>\n"
-        "Подписка сама выбирает живой сервер.\n"
-        "<code>🇷🇺XENO RU</code> · основной (магазины РФ — через RU)\n"
-        "<code>🇳🇱XENO NL Direct</code> · запасной"
+        "Вручную выберите <code>🇷🇺XENO RU</code> — основной.\n"
+        "<code>🇳🇱XENO NL Direct</code> · только запасной, если RU не встаёт.\n"
+        "<i>Автовыбор часто цепляет Direct — тогда кажется, что RU «мёртв».</i>"
     )
 
 
@@ -323,7 +323,7 @@ def connect_guide_platform(platform: str, *, has_access: bool = False) -> str:
             f"1. Установите <b>Happ</b> ({esc(store_hint)})\n"
             "2. <b>Мой доступ</b> → скопируйте нужную ссылку из текста\n"
             "3. В Happ вставьте → обновите → включите VPN\n\n"
-            "Happ сам выбирает живой сервер (RU / NL Direct)."
+            "Вручную выберите <code>🇷🇺XENO RU</code> — основной профиль."
         )
     else:
         steps = (
@@ -521,7 +521,11 @@ def help_text(*, demo_days: int, admin: bool = False, donate: bool = False) -> s
         + "<b>Если не коннектится</b>\n"
         + "1. Выключите VPN в Happ\n"
         + "2. Удалите старый профиль XENO\n"
-        + "3. Добавьте ссылку из <b>Мой доступ</b> заново → обновите\n\n"
+        + "3. Ссылка из <b>Мой доступ</b> — только <code>https://…</code>\n"
+        + "4. Обновите подписку → вручную <code>🇷🇺XENO RU</code>\n"
+        + "5. iOS: «неизвестный тип» / «отказано» — удалить профиль, импорт заново\n"
+        + "6. Windows: Happ <b>от администратора</b>; нет сети — режим <b>Proxy</b>\n"
+        + "7. Магазины / доставка (Ozon, WB, Магнит, X5, Самокат…) — только профиль <b>RU</b>, не Direct\n\n"
         + f"Команды · /start · /help · /dialog · /status{metrics_cmd}\n\n"
         + "Исходный код · публичный репозиторий.\n"
         + "Убедитесь сами, как устроена выдача — не «на слово».\n"

@@ -10,7 +10,7 @@ from aiohttp import web
 from config import load_settings
 from ops_events import (
     KIND_SUB_404,
-    emit as emit_ops,
+    emit_rate_limited,
     hash_ip,
     truncate_ip,
     truncate_token,
@@ -106,8 +106,10 @@ async def handle_sub(request: web.Request) -> web.Response:
         path = alt if alt.exists() else path
     if not path.exists():
         peer = request.remote or ""
-        emit_ops(
+        emit_rate_limited(
             KIND_SUB_404,
+            key=hash_ip(peer) or peer or "unknown",
+            min_interval_sec=60.0,
             token_prefix=truncate_token(token),
             ip_trunc=truncate_ip(peer),
             ip_hash=hash_ip(peer),

@@ -480,6 +480,25 @@ def test_support_ux_and_helpers() -> None:
     print("OK support ux + helpers")
 
 
+def test_sub_response_headers_no_autoconnect() -> None:
+    import sys
+    from pathlib import Path
+
+    bot = Path(__file__).resolve().parents[1] / "bot"
+    if str(bot) not in sys.path:
+        sys.path.insert(0, str(bot))
+    from sub_server import build_sub_response_headers
+
+    h = build_sub_response_headers(web_page="https://example.test/sub/tok/?v=1", is_json=False)
+    assert h["Content-Type"].startswith("text/plain")
+    assert "Content-Disposition" not in h
+    assert "subscription-autoconnect" not in h
+    assert "subscription-autoconnect-type" not in h
+    assert "subscription-ping-onopen-enabled" not in h
+    assert h["Cache-Control"].startswith("no-store")
+    print("OK sub headers (no autoconnect, plain text)")
+
+
 def main() -> int:
     test_demo_once()
     test_issued_god()
@@ -498,6 +517,7 @@ def main() -> int:
     test_donate_env_loader()
     test_support_dialog_db()
     test_support_ux_and_helpers()
+    test_sub_response_headers_no_autoconnect()
     print("ALL TESTS PASSED")
     return 0
 

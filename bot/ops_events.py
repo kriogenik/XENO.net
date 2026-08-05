@@ -86,6 +86,35 @@ def emit(kind: str, *, log_path: Path | None = None, **fields: Any) -> None:
         pass
 
 
+# In-process rate limit for noisy security events (scanners). Process-local only.
+_rate_buckets: dict[str, float] = {}
+
+
+def emit_rate_limited(
+    kind: str,
+    *,
+    key: str,
+    min_interval_sec: float = 60.0,
+    log_path: Path | None = None,
+    **fields: Any,
+) -> bool:
+    """Emit at most once per ``key`` every ``min_interval_sec``. Returns True if written."""
+    now = time.time()
+    bucket = f"{kind}|{key}"
+    last = _rate_buckets.get(bucket, 0.0)
+    if now - last < min_interval_sec:
+        return False
+    _rate_buckets[bucket] = now
+    # Bound memory if under scan
+    if len(_rate_buckets) > 4096:
+        cutoff = now - max(min_interval_sec, 60.0) * 2
+        for k, ts in list(_rate_buckets.items()):
+            if ts < cutoff:
+                _rate_buckets.pop(k, None)
+    emit(kind, log_path=log_path, **fields)
+    return True
+
+
 def parse_ts(iso_or_unix: Any) -> int | None:
     if iso_or_unix is None:
         return None

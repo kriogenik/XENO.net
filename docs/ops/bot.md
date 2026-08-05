@@ -34,6 +34,12 @@ python scripts/deploy_bot.py
 Бот никогда не выдаёт `http://…` для подписки. Токены клиентов не ротируются — меняется только схема/хост в ссылке.  
 `xenonet-sub` отдаёт plain список `vless://` (`text/plain; charset=utf-8`, без `Content-Disposition: attachment`); iOS Happ не принимает opaque base64 как тип контента.
 
+SelfSteal на exit (один раз / после пересоздания ноды) — dedicated nginx, не Python:
+
+```bash
+python scripts/migrate_steal_nginx.py
+```
+
 ## Поведение sync
 
 - Новые клиенты: hot-add через Xray API (полный inbound для Xray 26+).  

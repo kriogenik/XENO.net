@@ -18,7 +18,8 @@
 | [order-checklist.md](order-checklist.md) | Заказ VPS |
 | [nl-coexist.md](nl-coexist.md) | Сосуществование на одной VPS |
 | [ru-bridge.md](ru-bridge.md) | Entry-мост |
+| [observability.md](observability.md) | Логи, `events.jsonl`, digests, алерты |
+| [principles.md](principles.md) | Инженерные принципы |
 | [changelog.md](changelog.md) | Краткий ops-журнал |
-| [observability.md](observability.md) | Логи, `events.jsonl`, digests, слепые зоны |
 
 Секреты и реальные IP — только локально (`secrets/`, `inventory/hosts.local.env`).

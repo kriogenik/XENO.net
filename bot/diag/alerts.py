@@ -33,17 +33,23 @@ SNI_SPIKE_THRESHOLD = 50
 REALITY_HANDSHAKE_SPIKE_THRESHOLD = 100
 DISK_PCT_THRESHOLD = 90
 HOP_STALE_SEC = 6 * 3600
+# Entry accepts but hop silent — classic hung-steal / dead :8443 cascade break.
+CASCADE_SPLIT_HOP_SILENT_SEC = 45 * 60
+CASCADE_SPLIT_MIN_RU_ACCEPTS = 15
 
 # Keys we manage recovery for
 TRACKED_KEYS = (
     "hop_stale",
+    "cascade_split",
     "unit_xeno_relay",
     "unit_xeno_steal",
     "steal_https",
     "unit_bot",
+    "unit_sub",
     "disk",
     "sni_spike",
     "reality_handshake_spike",
+    "sub_404_spike",
     "smoke_fail",
 )
 
@@ -177,12 +183,39 @@ def evaluate_alerts(db: Database, settings: Settings) -> list[Alert]:
                 )
             )
 
+        # Cascade split: clients reach RU entry but hop to NL is dead (steal/relay look up).
+        ru_accepts = 0
+        for r in db.diag_list_user_days(day, day):
+            if r.get("email") == HOP_EMAIL:
+                continue
+            ru_accepts += int(r.get("accepts_ru") or 0)
+        hop_silent = (hop_last is None) or ((now - int(hop_last)) > CASCADE_SPLIT_HOP_SILENT_SEC)
+        if ru_accepts >= CASCADE_SPLIT_MIN_RU_ACCEPTS and hop_silent:
+            out.append(
+                Alert(
+                    key="cascade_split",
+                    fingerprint="split",
+                    text=(
+                        f"XENO alert · cascade split: RU accepts ×{ru_accepts} today but hop quiet "
+                        f"(last {_fmt(hop_last)}). Check :8443 / SelfSteal :9443 — Direct may work."
+                    ),
+                )
+            )
+
     if not _unit_active("xenonet-bot"):
         out.append(
             Alert(
                 key="unit_bot",
                 fingerprint="down",
                 text="XENO alert · xenonet-bot is not active.",
+            )
+        )
+    if not _unit_active("xenonet-sub"):
+        out.append(
+            Alert(
+                key="unit_sub",
+                fingerprint="down",
+                text="XENO alert · xenonet-sub is not active (Happ subscriptions).",
             )
         )
 
@@ -224,6 +257,26 @@ def evaluate_alerts(db: Database, settings: Settings) -> list[Alert]:
                 ),
             )
         )
+
+    # Sub token scan / 404 spike from events.jsonl (last hour)
+    try:
+        from ops_events import summarize_last_hours
+
+        win = summarize_last_hours(hours=1)
+        n404 = int(win.get("sub_404") or 0)
+        if n404 >= 30:
+            out.append(
+                Alert(
+                    key="sub_404_spike",
+                    fingerprint="scan",
+                    text=(
+                        f"XENO alert · sub 404 ×{n404}/1h — possible token scan. "
+                        "See events.jsonl kind=sub_404 (IP truncated)."
+                    ),
+                )
+            )
+    except Exception:
+        pass
 
     # Smoke: require 2 consecutive failures (avoid single blip after deploy/sync restart).
     recent = db.diag_smoke_recent(limit=2)

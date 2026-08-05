@@ -121,6 +121,8 @@ def run_smoke(db: Database, settings: Settings) -> dict[str, Any]:
         "nl_xeno_relay",
         "nl_xeno_steal",
         "nl_steal_https",
+        "nl_xenonet_bot",
+        "nl_xenonet_sub",
         "ru_xray",
         "tcp_ru_443",
         "tcp_nl_relay",
@@ -161,7 +163,8 @@ def _write_smoke_file(*, ok: bool, summary: str, checks: dict[str, Any], canary:
         "",
         "## Notes",
         "",
-        "- Critical: nl_xeno_relay, nl_xeno_steal, nl_steal_https, ru_xray, tcp_ru_443, tcp_nl_relay, sub_public_https",
+        "- Critical: nl_xeno_relay, nl_xeno_steal, nl_steal_https, nl_xenonet_bot, nl_xenonet_sub, "
+        "ru_xray, tcp_ru_443, tcp_nl_relay, sub_public_https",
         "- Hung SelfSteal (:9443) breaks Reality hop for all RU cascade users — Direct stays up",
         "- Canary UUID for Reality experiments: "
         + (canary[:8] + "…" if canary else "unset (`CANARY_CLIENT_UUID` / bootstrap)"),

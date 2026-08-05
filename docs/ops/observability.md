@@ -68,9 +68,11 @@ tail -n 200 /var/log/xeno/events.jsonl | jq -r 'select(.kind=="alert_open") | [.
 
 ## Алерты (Telegram)
 
-Ключи: `hop_stale`, `unit_xeno_relay`, `unit_xeno_steal`, `steal_https`, `unit_bot`, `disk`, `sni_spike`, `reality_handshake_spike` (≥100/день), `smoke_fail` (×2 подряд).
+Ключи: `hop_stale`, `cascade_split` (RU accepts, hop quiet ≥45м), `unit_xeno_relay`, `unit_xeno_steal`, `steal_https`, `unit_bot`, `unit_sub`, `disk`, `sni_spike`, `reality_handshake_spike` (≥100/день), `sub_404_spike` (≥30/час), `smoke_fail` (×2 подряд).
 
 Переходы open / remind(6h) / recover пишутся в `events.jsonl`.
+
+`sub_404` в events — **rate-limited** 1/мин на IP (сканеры не заливают диск).
 
 ## Digest: секция stability/security
 
@@ -96,11 +98,9 @@ tail -n 200 /var/log/xeno/events.jsonl | jq -r 'select(.kind=="alert_open") | [.
 ## Остаточные слепые зоны (честно)
 
 - Нет MITM и **нет логов destinations** (куда ходил клиент) — политика privacy.  
-- SelfSteal access log отключён (маскировка под сайт).  
-- HY2: unit есть, отдельного access-журнала в продукте нет.  
-- Rate limit на sub HTTP нет (только учёт 404); сканеры могут шуметь в events — смотрите top IP.  
-- Агрегат «exception rate» — счётчики в digest/events, отдельного Prometheus/Sentry нет.  
-- SSH sync mid-flight: есть `sync_all_error` + stack в journal вызывающего; детальный SSH transcript не пишем.  
-- `xenonet-sub` down — soft в smoke, не отдельный Telegram key (критичен HTTPS base в smoke).
+- SelfSteal = dedicated nginx на `:9443` (`access_log off`); здоровье — HTTPS probe + `xenonet-steal-watch`.  
+- HY2: unit есть, отдельного access-журнала в продукте нет (сейчас parked).  
+- Нет Prometheus/Sentry/APM — files + Telegram + digest.  
+- SSH mid-sync: `sync_all_error` + journal; полный SSH transcript не пишем.
 
 См. также: [runbook.md](runbook.md), [common-issues.md](common-issues.md), [bot.md](bot.md).

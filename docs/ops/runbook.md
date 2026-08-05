@@ -21,7 +21,7 @@
 | SNI mismatch spike | устаревшие профили Happ |
 | Диск / unit down | алерты админам, journalctl |
 | «RU мёртв» у части, Direct ок | [common-issues.md](common-issues.md) — чаще Happ autoconnect / выбор Direct |
-| Hop accepts = 0, entry accepts есть | SelfSteal NL :9443 hung → systemctl restart xeno-steal-nl; см. common-issues |
+| Hop accepts = 0, entry accepts есть | SelfSteal NL :9443 (nginx) down → `systemctl restart xeno-steal-nl`; см. common-issues / `cascade_split` |
 | iOS тип контента / отказано | plain sub, без Content-Disposition — см. common-issues |
 
 Подробная матрица клиентских кейсов: **[common-issues.md](common-issues.md)**.
@@ -33,7 +33,14 @@
 Бот и скрипты **не** должны менять чужие inbound’ы панели и сторонние деревья на диске.  
 ID защищённых inbound’ов — в `XUI_SACRED_INBOUND_IDS` (env).
 
-## Дайджесты
+## Алерты админам
 
-Таймеры collect / smoke / digest пишут файлы на сервере (см. [bot.md](bot.md)).  
-Алерты — только `ADMIN_IDS`.
+Collect каждые 5 мин и smoke каждый час вызывают `maybe_send_alerts`.
+
+- **Open** — один раз при появлении проблемы (стабильный fingerprint).  
+- **Remind** — не чаще чем раз в **6 ч**, пока проблема жива.  
+- **Recover** — одно сообщение `XENO recover · <key>`, когда снова OK.  
+
+Типичный спам раньше: `sni_spike` с fingerprint `sni:{count}` — счётчик рос → кулдаун сбрасывался каждые 5 мин. Сейчас fingerprint = `day:YYYY-MM-DD`.
+
+SelfSteal: таймер `xenonet-steal-watch` (2 мин) рестартит `xeno-steal-nl`, если `https://127.0.0.1:9443/` не отвечает.

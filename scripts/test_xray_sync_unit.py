@@ -93,6 +93,13 @@ assert "geosite:category-ru" in flat
 for d in DOMESTIC_BYPASS_DOMAINS:
     assert d in flat, d
 assert "domain:ozon.ru" in flat and "domain:magnit.ru" in flat
+assert "domain:wildberries.ru" in flat
+assert "domain:wbstatic.net" in flat
+assert "domain:5ka.ru" in flat and "domain:perekrestok.ru" in flat
+assert "domain:vkusvill.ru" in flat and "domain:samokat.ru" in flat
+assert "domain:sbermarket.ru" in flat and "domain:cdek.ru" in flat
+assert "domain:yandex.go" not in flat
+assert len(flat) >= 80
 
 bal = build_happ_balancer_config(
     client_uuid="11111111-1111-1111-1111-111111111111",

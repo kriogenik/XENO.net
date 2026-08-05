@@ -229,7 +229,11 @@ def setup_selfsteal(
     unit_name: str = "xeno-steal",
     listen: str = "127.0.0.1:9443",
 ) -> bool:
-    """Serve a tiny HTTPS site for Reality dest. Returns True if ready."""
+    """Serve Reality dest via dedicated nginx (not Python ThreadingTCPServer).
+
+    Python SelfSteal wedges under probe load (active + Recv-Q, TLS timeout).
+    Isolated ``nginx -c /etc/xeno/steal-nginx.conf`` does not touch sibling sites.
+    """
     if not domain or not cert_dir:
         return False
     fullchain = f"{cert_dir}/fullchain.pem"
@@ -238,38 +242,70 @@ def setup_selfsteal(
     if "OK" not in check:
         print(f"  selfsteal skip: no certs in {cert_dir}")
         return False
-    run(c, "mkdir -p /var/www/xeno-steal && echo '<!doctype html><title>ok</title>ok' > /var/www/xeno-steal/index.html")
+    run(
+        c,
+        "export DEBIAN_FRONTEND=noninteractive; "
+        "command -v nginx >/dev/null || apt-get install -y nginx",
+        check=False,
+    )
+    run(c, "mkdir -p /var/www/xeno-steal /etc/xeno /var/log/xeno")
+    run(
+        c,
+        "test -f /var/www/xeno-steal/index.html || "
+        "echo '<!doctype html><title>ok</title>ok' > /var/www/xeno-steal/index.html",
+        check=False,
+    )
     host, port = listen.split(":")
-    server = f'''#!/usr/bin/env python3
-from http.server import SimpleHTTPRequestHandler
-from socketserver import ThreadingTCPServer
-import ssl
-from pathlib import Path
-ROOT = Path("/var/www/xeno-steal")
-class H(SimpleHTTPRequestHandler):
-    def __init__(self, *a, **k):
-        super().__init__(*a, directory=str(ROOT), **k)
-    def log_message(self, *a):
-        return
-ThreadingTCPServer.allow_reuse_address = True
-httpd = ThreadingTCPServer(("{host}", {port}), H)
-httpd.daemon_threads = True
-ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-ctx.load_cert_chain("{fullchain}", "{privkey}")
-httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
-httpd.serve_forever()
-'''
-    sftp_write(c, f"/usr/local/bin/{unit_name}.py", server)
+    nginx_conf = f"""# XENO Reality SelfSteal — dedicated nginx
+worker_processes 1;
+error_log /var/log/xeno/steal-nginx-error.log warn;
+pid /run/xeno-steal-nginx.pid;
+events {{
+    worker_connections 256;
+}}
+http {{
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    access_log off;
+    sendfile on;
+    keepalive_timeout 15;
+    server {{
+        listen {host}:{port} ssl;
+        server_name {domain} _;
+        ssl_certificate {fullchain};
+        ssl_certificate_key {privkey};
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_session_cache shared:xeno_steal:10m;
+        root /var/www/xeno-steal;
+        location / {{
+            try_files $uri $uri/ /index.html;
+        }}
+    }}
+}}
+"""
+    sftp_write(c, "/etc/xeno/steal-nginx.conf", nginx_conf)
     unit = f"""[Unit]
-Description=xeno Reality SelfSteal HTTPS ({domain})
+Description=XENO Reality SelfSteal HTTPS (nginx {listen})
 After=network.target
+StartLimitIntervalSec=0
 [Service]
-ExecStart=/usr/bin/python3 /usr/local/bin/{unit_name}.py
-Restart=on-failure
+Type=forking
+PIDFile=/run/xeno-steal-nginx.pid
+ExecStartPre=/usr/sbin/nginx -t -c /etc/xeno/steal-nginx.conf
+ExecStart=/usr/sbin/nginx -c /etc/xeno/steal-nginx.conf
+ExecReload=/usr/sbin/nginx -s reload
+ExecStop=/bin/kill -s QUIT $MAINPID
+Restart=always
+RestartSec=2
+KillMode=mixed
+TimeoutStopSec=10
 [Install]
 WantedBy=multi-user.target
 """
     sftp_write(c, f"/etc/systemd/system/{unit_name}.service", unit)
+    run(c, f"systemctl stop {unit_name} 2>/dev/null || true", check=False)
+    run(c, f"fuser -k {port}/tcp 2>/dev/null || true", check=False)
+    time.sleep(1)
     run(c, f"systemctl daemon-reload && systemctl enable {unit_name} && systemctl restart {unit_name}")
     time.sleep(1)
     active = run(c, f"systemctl is-active {unit_name}", check=False).strip()
