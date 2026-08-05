@@ -4,7 +4,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bot"))
 
-from xray_sync import build_profile_links, build_ru_config, build_vless_link, flagged_profile_name
+from xray_sync import (
+    DOMESTIC_BYPASS_DOMAINS,
+    build_happ_balancer_config,
+    build_profile_links,
+    build_ru_config,
+    build_vless_link,
+    flagged_profile_name,
+)
 
 cfg = build_ru_config(
     ["11111111-1111-1111-1111-111111111111"],
@@ -76,4 +83,37 @@ profiles = build_profile_links(
 )
 assert unquote(profiles[0].split("#", 1)[1]) == "🇷🇺XENO RU"
 assert unquote(profiles[1].split("#", 1)[1]) == "🇳🇱XENO NL Direct"
-print("OK build_ru_config + build_vless_link XHTTP + flags")
+
+# Domestic shop bypass (Ozon/Magnit CDN) on RU + Happ balancer
+dom_rules = [r for r in cfg["routing"]["rules"] if r.get("domain")]
+flat = []
+for r in dom_rules:
+    flat.extend(r["domain"])
+assert "geosite:category-ru" in flat
+for d in DOMESTIC_BYPASS_DOMAINS:
+    assert d in flat, d
+assert "domain:ozon.ru" in flat and "domain:magnit.ru" in flat
+
+bal = build_happ_balancer_config(
+    client_uuid="11111111-1111-1111-1111-111111111111",
+    display_name="XENO",
+    ru_host="ru.example",
+    ru_port=443,
+    ru_sni="dl.google.com",
+    ru_pbk="pbk",
+    ru_sid="sid",
+    ru_path="/",
+    backups_enabled=False,
+    nl_host="nl.example",
+    nl_direct_port=2053,
+    direct_sni="",
+    direct_pbk="",
+    direct_sid="",
+    direct_path="",
+)
+bal_dom = []
+for r in bal["routing"]["rules"]:
+    bal_dom.extend(r.get("domain") or [])
+assert "domain:ozon.ru" in bal_dom and "domain:magnit.ru" in bal_dom
+
+print("OK build_ru_config + build_vless_link XHTTP + flags + domestic bypass")

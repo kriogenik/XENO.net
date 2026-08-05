@@ -2,7 +2,8 @@
 
 > Для операторов и self-host. Клиентам XENO не требуется — см. [../README.md](../README.md).
 
-Entry-нода принимает клиентов (VLESS + Reality + XHTTP), режет российский трафик в direct и остальное отправляет на exit через внутренний hop.
+Entry-нода принимает клиентов (VLESS + Reality + XHTTP), режет российский трафик в direct
+(`geosite:category-ru`, `geoip:ru`, плюс явные домены Ozon/Magnit CDN) и остальное отправляет на exit через внутренний hop.
 
 ## Роль
 

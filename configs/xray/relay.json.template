@@ -102,6 +102,22 @@
       },
       {
         "type": "field",
+        "domain": [
+          "domain:ozon.ru",
+          "domain:ozon.com",
+          "domain:o3.ru",
+          "domain:ozone.ru",
+          "domain:ozonusercontent.com",
+          "domain:ozonru.me",
+          "domain:magnit.ru",
+          "domain:magnit.com",
+          "domain:magnit-info.ru",
+          "domain:magnit.online"
+        ],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
         "ip": ["geoip:ru"],
         "outboundTag": "direct"
       },

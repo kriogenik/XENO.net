@@ -1,10 +1,15 @@
-# Ops changelog
+﻿# Ops changelog
 
 > Для операторов и self-host. Клиентам XENO не требуется — см. [../README.md](../README.md).
 
 Краткие записи после правок. Без IP, паролей и UUID.
 
 ## 2026-08
+
+## 2026-08-05
+
+- Entry routing: явный bypass Ozon/Magnit CDN (`domain:ozon.ru`, `ozone.ru`, `o3.ru`, `magnit.ru` и др.) → direct, в дополнение к `geosite:category-ru` / `geoip:ru`. Иначе API/CDN уходили в NL hop и приложения видели зарубежный IP.
+- Клиентам: для магазинов — профиль **RU**, не NL Direct; обновить подписку после выката.
 
 - Sub/Happ iOS: убран `Content-Disposition: attachment` (Safari мог уходить в «скачать файл» → «в разрешении отказано»); тело — plain `vless://`, `text/plain` + Profile-Title/Announce.
 - Sub/Happ iOS: тело подписки — plain `vless://` (не base64); legacy base64 на лету декодируется. Было: base64 + `text/plain` → на iOS «неизвестный тип контента».

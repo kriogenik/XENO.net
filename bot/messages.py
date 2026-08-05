@@ -67,7 +67,7 @@ def _profile_hint() -> str:
     return (
         "<b>В Happ</b>\n"
         "Подписка сама выбирает живой сервер.\n"
-        "<code>🇷🇺XENO RU</code> · основной\n"
+        "<code>🇷🇺XENO RU</code> · основной (магазины РФ — через RU)\n"
         "<code>🇳🇱XENO NL Direct</code> · запасной"
     )
 

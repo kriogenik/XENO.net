@@ -24,7 +24,36 @@ XRAY_API_SERVER = "127.0.0.1:8080"
 RU_CLIENT_INBOUND = "client-in"
 NL_DIRECT_INBOUND = "xeno-direct-in"
 
+# Extra domestic bypass beyond geosite:category-ru / geoip:ru.
+# Shop apps (Ozon, Magnit) often hit CDN / API hosts outside geoip:ru; those would
+# otherwise exit via NL hop and look like a foreign VPN. domain: matches subdomains.
+# Best-effort — lists drift; banks/gosuslugi already covered by geoip:ru.
+DOMESTIC_BYPASS_DOMAINS: list[str] = [
+    # Ozon
+    "domain:ozon.ru",
+    "domain:ozon.com",
+    "domain:o3.ru",
+    "domain:ozone.ru",
+    "domain:ozonusercontent.com",
+    "domain:ozonru.me",
+    # Magnit
+    "domain:magnit.ru",
+    "domain:magnit.com",
+    "domain:magnit-info.ru",
+    "domain:magnit.online",
+]
+
 SyncAction = Literal["skip", "hot_add", "restart"]
+
+
+def domestic_bypass_routing_rules() -> list[dict]:
+    """Field rules: private + RU geosite/geoip + shop CDN extras → direct."""
+    return [
+        {"type": "field", "ip": ["geoip:private"], "outboundTag": "direct"},
+        {"type": "field", "domain": ["geosite:category-ru"], "outboundTag": "direct"},
+        {"type": "field", "domain": list(DOMESTIC_BYPASS_DOMAINS), "outboundTag": "direct"},
+        {"type": "field", "ip": ["geoip:ru"], "outboundTag": "direct"},
+    ]
 
 
 def client_email(
@@ -322,11 +351,7 @@ def build_happ_balancer_config(
         ]
     )
 
-    routing_rules: list[dict] = [
-        {"type": "field", "ip": ["geoip:private"], "outboundTag": "direct"},
-        {"type": "field", "domain": ["geosite:category-ru"], "outboundTag": "direct"},
-        {"type": "field", "ip": ["geoip:ru"], "outboundTag": "direct"},
-    ]
+    routing_rules: list[dict] = domestic_bypass_routing_rules()
 
     cfg: dict = {
         "remarks": display_name,
@@ -583,9 +608,7 @@ def build_ru_config(
             "domainStrategy": "IPIfNonMatch",
             "rules": [
                 {"type": "field", "inboundTag": ["api"], "outboundTag": "api"},
-                {"type": "field", "ip": ["geoip:private"], "outboundTag": "direct"},
-                {"type": "field", "domain": ["geosite:category-ru"], "outboundTag": "direct"},
-                {"type": "field", "ip": ["geoip:ru"], "outboundTag": "direct"},
+                *domestic_bypass_routing_rules(),
                 {"type": "field", "network": "tcp,udp", "outboundTag": "nl-exit"},
             ],
         },

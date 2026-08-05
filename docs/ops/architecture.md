@@ -7,7 +7,7 @@
 ```
 Клиент (Happ)
   → entry :443  VLESS + Reality + XHTTP
-      ├─ geoip/geosite:ru → direct
+      ├─ geoip/geosite:ru + магазины (Ozon/Magnit CDN) → direct
       └─ остальное → hop → exit
   запасной профиль: прямой вход на exit (отдельный порт)
 ```
