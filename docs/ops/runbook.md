@@ -20,6 +20,13 @@
 | Entry жив, hop тихий | relay unit, UFW hop только с entry IP |
 | SNI mismatch spike | устаревшие профили Happ |
 | Диск / unit down | алерты админам, journalctl |
+| «RU мёртв» у части, Direct ок | [common-issues.md](common-issues.md) — чаще Happ autoconnect / выбор Direct |
+| Hop accepts = 0, entry accepts есть | SelfSteal NL :9443 hung → systemctl restart xeno-steal-nl; см. common-issues |
+| iOS тип контента / отказано | plain sub, без Content-Disposition — см. common-issues |
+
+Подробная матрица клиентских кейсов: **[common-issues.md](common-issues.md)**.
+
+После смены routing: `python scripts/repair_subscriptions.py`.
 
 ## Sacred
 

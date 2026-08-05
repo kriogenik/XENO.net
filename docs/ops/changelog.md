@@ -6,6 +6,14 @@
 
 ## 2026-08
 
+## 2026-08-05 (вечер)
+
+- **Incident:** у всех RU cascade «не работает», NL Direct OK. Причина — зависший SelfSteal `xeno-steal-nl` на `127.0.0.1:9443` (Recv-Q забит): Reality hop `:8443` перестал рукопожаться (~09:48 UTC). Hop accepts = 0 при живых entry accepts. Лечение: поднять steal (при `EADDRINUSE` — только pid steal на 9443), проверить `curl -sk https://127.0.0.1:9443/` и hop e2e. Sacred (3x-ui / trading) не трогали. В шаблоне SelfSteal — `allow_reuse_address` + `daemon_threads`.
+- **Sub:** убран Happ `subscription-autoconnect` / `lowestdelay` — из‑за него клиенты молча сидели на NL Direct и думали, что RU «сдох». В боте и docs: вручную **🇷🇺 RU**.
+- **Routing:** bypass Wildberries (`wildberries.ru`, `wb.ru`) на entry.
+- **Ops:** [common-issues.md](common-issues.md) — матрица типичных кейсов; `scripts/repair_subscriptions.py` — массовый rewrite subs + sync.
+- Smoke: проверка `SUB_PUBLIC_BASE` начинается с `https://`.
+
 ## 2026-08-05
 
 - Entry routing: явный bypass Ozon/Magnit CDN (`domain:ozon.ru`, `ozone.ru`, `o3.ru`, `magnit.ru` и др.) → direct, в дополнение к `geosite:category-ru` / `geoip:ru`. Иначе API/CDN уходили в NL hop и приложения видели зарубежный IP.

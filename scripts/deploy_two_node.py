@@ -251,7 +251,9 @@ class H(SimpleHTTPRequestHandler):
         super().__init__(*a, directory=str(ROOT), **k)
     def log_message(self, *a):
         return
+ThreadingTCPServer.allow_reuse_address = True
 httpd = ThreadingTCPServer(("{host}", {port}), H)
+httpd.daemon_threads = True
 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 ctx.load_cert_chain("{fullchain}", "{privkey}")
 httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
