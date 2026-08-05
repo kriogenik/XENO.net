@@ -6,6 +6,11 @@
 
 ## 2026-08
 
+## 2026-08-05 (media bypass)
+
+- Entry domestic bypass: кино/сериалы. Явно `geosite:category-entertainment-ru` (ivi/okko/kinopoisk/…) + домены `bumazhniy-dom.com` (жалоба), more.tv, megogo, premier.one, kinorium, CDN (ivicdn/cdnvideohub/kinescope/trbcdn). Иначе .com-порталы уходили в NL hop → geo/VPN block.
+- Клиентам: профиль **🇷🇺 RU** + обновить подписку. NL Direct не поможет.
+
 ## 2026-08-05 (SelfSteal nginx + cascade_split)
 
 - SelfSteal на NL: **dedicated nginx** (`/etc/xeno/steal-nginx.conf`, unit `xeno-steal-nl`) вместо Python `ThreadingTCPServer` — устраняет клины :9443 под Reality-пробами.

@@ -11,7 +11,8 @@
 | В разрешении отказано (iOS) | `Content-Disposition: attachment` | Заголовок убран | Переимпорт; Настройки → Happ → VPN |
 | «RU мёртв», Direct работает | Happ autoconnect → NL Direct | **Autoconnect отключён** | Вручную **🇷🇺 RU**; не Direct |
 | «RU мёртв» у всех, Direct OK, hop=0 | SelfSteal `xeno-steal-nl` (:9443, nginx) не отвечает → Reality :8443 не рукопожается | `systemctl restart xeno-steal-nl`; `curl -sk https://127.0.0.1:9443/`; при залипшем порте — `fuser -k 9443/tcp` и снова start | После фикса hop — снова **🇷🇺 RU** |
-| Ozon / Магнит / WB / продукты / доставка видят VPN | CDN вне `geoip:ru` → NL hop | Явный bypass на entry (маркетплейсы, X5, ВкусВилл, Самокат, СберМаркет, CDEK, …) | Профиль **RU** + обновить подписку |
+| Ozon / Магнит / WB / продукты / доставка видят VPN | CDN вне `geoip:ru` → NL hop | Явный bypass на entry (маркетплейсы, X5, ВкусВилл, Самокат, СберМаркет, CDEK, …) | Профиль **🇷🇺 RU** + обновить подписку |
+| Кино / сериалы (bumazhniy-dom и др.) видят VPN | .com-портал вне geosite → NL hop | `geosite:category-entertainment-ru` + явные media-домены → direct на entry | Профиль **🇷🇺 RU** + обновить подписку |
 | Старая клавиатура бота | Telegram не обновляет inline на старых сообщениях | `/start` шлёт новое сообщение | `/start` → заново открыть экран |
 | Windows: подключено, сети нет | TUN без прав админа | — | Happ от администратора; режим **Proxy** |
 | Подписка «обновляется с задержкой» | Happ кэш / VPN включён при refresh | `Cache-Control: no-store` | VPN выкл → обновить |

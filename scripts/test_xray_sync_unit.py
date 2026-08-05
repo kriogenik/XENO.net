@@ -90,6 +90,7 @@ flat = []
 for r in dom_rules:
     flat.extend(r["domain"])
 assert "geosite:category-ru" in flat
+assert "geosite:category-entertainment-ru" in flat
 for d in DOMESTIC_BYPASS_DOMAINS:
     assert d in flat, d
 assert "domain:ozon.ru" in flat and "domain:magnit.ru" in flat
@@ -98,6 +99,8 @@ assert "domain:wbstatic.net" in flat
 assert "domain:5ka.ru" in flat and "domain:perekrestok.ru" in flat
 assert "domain:vkusvill.ru" in flat and "domain:samokat.ru" in flat
 assert "domain:sbermarket.ru" in flat and "domain:cdek.ru" in flat
+assert "domain:bumazhniy-dom.com" in flat
+assert "domain:more.tv" in flat and "domain:megogo.net" in flat
 assert "domain:yandex.go" not in flat
 assert len(flat) >= 80
 

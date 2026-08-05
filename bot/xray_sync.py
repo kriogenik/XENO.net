@@ -27,8 +27,11 @@ NL_DIRECT_INBOUND = "xeno-direct-in"
 # Extra domestic bypass beyond geosite:category-ru / geoip:ru.
 # Shop / grocery / delivery apps often hit CDN / API hosts outside geoip:ru;
 # those would otherwise exit via NL hop and look like a foreign VPN.
+# Same for RU geo-locked media (.com film portals hosted in RU but not in geosite).
 # domain: matches the apex and all subdomains. Curated from v2fly domain-list
-# (ozon, wildberries, x5, magnit, …) + well-known RU retail/delivery brands.
+# (ozon, wildberries, x5, magnit, …) + well-known RU retail/delivery brands
+# + a tight media list (not mirror farms). Legal streaming mass-cover is
+# geosite:category-entertainment-ru (also nested under category-ru).
 # Best-effort — lists drift; banks/gosuslugi already covered by geoip:ru.
 # Not a full geosite dump (no typosquatting). TUN-level VPN detect is out of scope.
 DOMESTIC_BYPASS_DOMAINS: list[str] = [
@@ -152,16 +155,38 @@ DOMESTIC_BYPASS_DOMAINS: list[str] = [
     "domain:lemanapro.ru",
     "domain:obi.ru",
     "domain:hoff.ru",
+    # --- Media / film / series (RU geo) ---
+    # Legal majors: geosite:category-entertainment-ru (ivi/okko/kinopoisk/…).
+    # Explicit .com portals that geo/VPN-block NL exit; cert SANs = apex+www only.
+    "domain:bumazhniy-dom.com",
+    "domain:kinorium.com",
+    "domain:more.tv",
+    "domain:megogo.net",
+    "domain:megogo.ru",
+    "domain:premier.one",
+    "domain:ivicdn.tv",
+    "domain:cdnvideohub.com",
+    "domain:kinescopecdn.net",
+    "domain:trbcdn.net",
 ]
 
 SyncAction = Literal["skip", "hot_add", "restart"]
 
 
 def domestic_bypass_routing_rules() -> list[dict]:
-    """Field rules: private + RU geosite/geoip + shop CDN extras → direct."""
+    """Field rules: private + RU geosite/geoip + shop/media CDN extras → direct."""
     return [
         {"type": "field", "ip": ["geoip:private"], "outboundTag": "direct"},
-        {"type": "field", "domain": ["geosite:category-ru"], "outboundTag": "direct"},
+        {
+            "type": "field",
+            "domain": [
+                "geosite:category-ru",
+                # Explicit: legal RU VOD/TV (also nested under category-ru on current
+                # geosite.dat; keep tagged so older dat / partial builds still match).
+                "geosite:category-entertainment-ru",
+            ],
+            "outboundTag": "direct",
+        },
         {"type": "field", "domain": list(DOMESTIC_BYPASS_DOMAINS), "outboundTag": "direct"},
         {"type": "field", "ip": ["geoip:ru"], "outboundTag": "direct"},
     ]
