@@ -246,6 +246,48 @@ WantedBy=timers.target
     sftp_write(c, "/etc/systemd/system/xenonet-diag-smoke.service", diag_smoke_unit)
     sftp_write(c, "/etc/systemd/system/xenonet-diag-smoke.timer", diag_smoke_timer)
 
+    # SelfSteal health: hung process can still be "active" while HTTPS :9443 wedges Reality hop.
+    # Logs reason to /var/log/xeno/events.jsonl before restart.
+    steal_watch_unit = f"""[Unit]
+Description=XENO.net SelfSteal HTTPS healthcheck (restart if :9443 wedged)
+After=network-online.target xeno-steal-nl.service
+
+[Service]
+Type=oneshot
+WorkingDirectory={app}
+ExecStart={py} -m diag.steal_watch
+Nice=10
+"""
+    steal_watch_timer = """[Unit]
+Description=XENO.net SelfSteal health every 2 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+AccuracySec=30s
+Persistent=true
+Unit=xenonet-steal-watch.service
+
+[Install]
+WantedBy=timers.target
+"""
+    sftp_write(c, "/etc/systemd/system/xenonet-steal-watch.service", steal_watch_unit)
+    sftp_write(c, "/etc/systemd/system/xenonet-steal-watch.timer", steal_watch_timer)
+    # Harden live steal unit if present (Restart=always).
+    run(
+        c,
+        r"""
+set -euo pipefail
+unit=/etc/systemd/system/xeno-steal-nl.service
+if [[ -f "$unit" ]]; then
+  grep -q '^Restart=always' "$unit" || sed -i 's/^Restart=.*/Restart=always/' "$unit"
+  grep -q '^RestartSec=' "$unit" || sed -i '/^Restart=/a RestartSec=3' "$unit"
+  grep -q '^StartLimitIntervalSec=0' "$unit" || sed -i '/^\[Unit\]/a StartLimitIntervalSec=0' "$unit"
+fi
+""",
+        check=False,
+    )
+
     expiry_unit = f"""[Unit]
 Description=XENO.net soft expiry reminders (3d / 1d)
 After=network-online.target
@@ -283,19 +325,22 @@ WantedBy=timers.target
         "systemctl daemon-reload && "
         "systemctl enable xenonet-bot xenonet-sub "
         "xenonet-diag-collect.timer xenonet-diag-digest.timer xenonet-diag-smoke.timer "
-        "xenonet-expiry-nudge.timer && "
+        "xenonet-expiry-nudge.timer xenonet-steal-watch.timer && "
         "systemctl restart xenonet-sub && "
         "systemctl restart xenonet-bot && "
         "systemctl restart xenonet-diag-collect.timer && "
         "systemctl restart xenonet-diag-digest.timer && "
         "systemctl restart xenonet-diag-smoke.timer && "
-        "systemctl restart xenonet-expiry-nudge.timer",
+        "systemctl restart xenonet-expiry-nudge.timer && "
+        "systemctl restart xeno-steal-nl || true; "
+        "systemctl restart xenonet-steal-watch.timer || true",
     )
     run(
         c,
         "systemctl is-active xenonet-bot xenonet-sub xeno-bot x-ui xeno-relay "
         "xenonet-diag-collect.timer xenonet-diag-digest.timer xenonet-diag-smoke.timer "
-        "xenonet-expiry-nudge.timer",
+        "xenonet-expiry-nudge.timer xenonet-steal-watch.timer || true",
+        check=False,
     )
     # First collect + smoke + daily digest so files exist immediately
     run(
@@ -332,6 +377,12 @@ WantedBy=timers.target
         "_,o,_=c.exec_command('hostname; systemctl is-active xray')\n"
         "print(o.read().decode()); c.close()\n"
         "PY",
+    )
+    # Durable deploy ledger on box (no secrets).
+    run(
+        c,
+        f"cd {app} && {py} -c \"from ops_events import KIND_DEPLOY, emit; emit(KIND_DEPLOY, host='nl', ok=True, root='{INSTALL_ROOT}')\"",
+        check=False,
     )
     c.close()
     print(f"Deploy OK -> {INSTALL_ROOT} (product units only; sacred/sibling services untouched)")

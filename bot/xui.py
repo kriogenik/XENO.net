@@ -11,6 +11,9 @@ from dataclasses import dataclass
 from typing import Any
 
 
+from ops_events import KIND_SACRED_DENIED, emit as emit_ops
+
+
 def _int_set(env_name: str, default: str) -> frozenset[int]:
     raw = os.environ.get(env_name, default)
     return frozenset(int(x) for x in raw.split(",") if x.strip().isdigit())
@@ -24,6 +27,11 @@ SACRED_INBOUND_PORTS: frozenset[int] = _int_set("XUI_SACRED_INBOUND_PORTS", "")
 
 class XuiError(RuntimeError):
     pass
+
+
+def _refuse_sacred(detail: str) -> None:
+    emit_ops(KIND_SACRED_DENIED, detail=detail[:160])
+    raise XuiError(detail)
 
 
 @dataclass(frozen=True)
@@ -117,13 +125,13 @@ class XuiClient:
 
     def get_inbound(self, inbound_id: int) -> dict:
         if inbound_id in SACRED_INBOUND_IDS:
-            raise XuiError(f"inbound {inbound_id} is sacred — refused")
+            _refuse_sacred(f"inbound {inbound_id} is sacred — refused")
         obj = (self._req("GET", f"/panel/api/inbounds/get/{inbound_id}") or {}).get("obj")
         if not obj:
             raise XuiError(f"inbound {inbound_id} not found")
         port = int(obj.get("port") or 0)
         if port in SACRED_INBOUND_PORTS:
-            raise XuiError(f"inbound {inbound_id} port {port} is sacred — refused")
+            _refuse_sacred(f"inbound {inbound_id} port {port} is sacred — refused")
         return obj
 
     def list_inbounds(self) -> list[dict]:
@@ -160,7 +168,7 @@ class XuiClient:
     ) -> None:
         """Add client ONLY to the given inbound (never broadcast to all). Idempotent."""
         if inbound_id in SACRED_INBOUND_IDS:
-            raise XuiError(f"refusing add_client on sacred inbound {inbound_id}")
+            _refuse_sacred(f"refusing add_client on sacred inbound {inbound_id}")
         client: dict[str, Any] = {
             "id": client_uuid,
             "email": email,
@@ -197,7 +205,7 @@ class XuiClient:
     ) -> None:
         """Update an existing client on the given inbound (preserves UUID/credentials)."""
         if inbound_id in SACRED_INBOUND_IDS:
-            raise XuiError(f"refusing update_client on sacred inbound {inbound_id}")
+            _refuse_sacred(f"refusing update_client on sacred inbound {inbound_id}")
         updated = dict(client)
         if comment is not None:
             updated["comment"] = comment

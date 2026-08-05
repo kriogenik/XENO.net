@@ -14,6 +14,7 @@ import paramiko
 from config import Settings
 from db import Database
 from diag import DIGEST_ROOT
+from ops_events import KIND_SMOKE_RESULT, emit as emit_ops
 
 
 SMOKE_DIR = Path(DIGEST_ROOT) / "smoke"
@@ -37,6 +38,26 @@ def _tcp_ok(host: str, port: int, timeout: float = 5.0) -> bool:
         with socket.create_connection((host, port), timeout=timeout):
             return True
     except OSError:
+        return False
+
+
+def _steal_https_ok(listen: str = "127.0.0.1:9443", timeout: float = 5.0) -> bool:
+    """SelfSteal must answer TLS locally — hung steal breaks Reality hop for everyone."""
+    try:
+        r = subprocess.run(
+            [
+                "curl",
+                "-sk",
+                "--max-time",
+                str(int(timeout)),
+                f"https://{listen}/",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=timeout + 2,
+        )
+        return r.returncode == 0 and bool((r.stdout or "").strip())
+    except (OSError, subprocess.TimeoutExpired):
         return False
 
 
@@ -73,6 +94,8 @@ def run_smoke(db: Database, settings: Settings) -> dict[str, Any]:
     checks: dict[str, Any] = {}
 
     checks["nl_xeno_relay"] = _unit_active("xeno-relay")
+    checks["nl_xeno_steal"] = _unit_active("xeno-steal-nl")
+    checks["nl_steal_https"] = _steal_https_ok()
     checks["nl_xenonet_bot"] = _unit_active("xenonet-bot")
     checks["nl_xenonet_sub"] = _unit_active("xenonet-sub")
     checks["tcp_ru_443"] = _tcp_ok(settings.ru_public_ip or settings.ru_public_host, settings.client_port)
@@ -81,8 +104,12 @@ def run_smoke(db: Database, settings: Settings) -> dict[str, Any]:
         checks["tcp_nl_direct"] = _tcp_ok(settings.nl_exit_ip, settings.nl_direct_port)
     checks["ru_xray"] = _ru_xray_active(settings)
 
+    sub_base = (getattr(settings, "sub_public_base", None) or "").strip()
+    checks["sub_public_https"] = sub_base.lower().startswith("https://") if sub_base else False
+
     hops = db.diag_get_hop_days(day, day)
     hop_last = int(hops[0]["last_seen"]) if hops and hops[0].get("last_seen") else None
+    # Soft signal: quiet nights may have no hop traffic; steal HTTPS is the hard check.
     hop_fresh = bool(hop_last and (now - hop_last) < 2 * 3600)
     checks["hop_fresh_2h"] = hop_fresh
     checks["hop_last_seen"] = hop_last
@@ -92,9 +119,12 @@ def run_smoke(db: Database, settings: Settings) -> dict[str, Any]:
 
     critical = [
         "nl_xeno_relay",
+        "nl_xeno_steal",
+        "nl_steal_https",
         "ru_xray",
         "tcp_ru_443",
         "tcp_nl_relay",
+        "sub_public_https",
     ]
     ok = all(bool(checks.get(k)) for k in critical)
     failed = [k for k in critical if not checks.get(k)]
@@ -102,6 +132,12 @@ def run_smoke(db: Database, settings: Settings) -> dict[str, Any]:
 
     db.diag_smoke_record(ok=ok, summary=summary, detail=checks)
     _write_smoke_file(ok=ok, summary=summary, checks=checks, canary=canary)
+    emit_ops(
+        KIND_SMOKE_RESULT,
+        ok=ok,
+        summary=summary,
+        failed=failed or None,
+    )
     return {"ok": ok, "summary": summary, "checks": checks}
 
 
@@ -125,7 +161,8 @@ def _write_smoke_file(*, ok: bool, summary: str, checks: dict[str, Any], canary:
         "",
         "## Notes",
         "",
-        "- Critical: nl_xeno_relay, ru_xray, tcp_ru_443, tcp_nl_relay",
+        "- Critical: nl_xeno_relay, nl_xeno_steal, nl_steal_https, ru_xray, tcp_ru_443, tcp_nl_relay, sub_public_https",
+        "- Hung SelfSteal (:9443) breaks Reality hop for all RU cascade users — Direct stays up",
         "- Canary UUID for Reality experiments: "
         + (canary[:8] + "…" if canary else "unset (`CANARY_CLIENT_UUID` / bootstrap)"),
         "- No destination URLs collected",

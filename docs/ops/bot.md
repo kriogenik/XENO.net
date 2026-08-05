@@ -42,8 +42,9 @@ python scripts/deploy_bot.py
 
 ## Таймеры
 
-Collect / smoke / digests / expiry nags — systemd timers на exit-ноде.  
-Алерты только `ADMIN_IDS`. Дайджесты — файлы на диске, без истории серфинга.
+Collect / smoke / digests / expiry nags / steal-watch — systemd timers на exit-ноде.  
+Алерты только `ADMIN_IDS`. Дайджесты — файлы на диске, без истории серфинга.  
+Ops-события: `/var/log/xeno/events.jsonl` — см. [observability.md](observability.md).
 
 ## Godmode
 

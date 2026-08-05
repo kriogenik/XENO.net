@@ -1,10 +1,33 @@
-﻿# Ops changelog
+# Ops changelog
 
 > Для операторов и self-host. Клиентам XENO не требуется — см. [../README.md](../README.md).
 
 Краткие записи после правок. Без IP, паролей и UUID.
 
 ## 2026-08
+
+## 2026-08-05 (observability)
+
+- Единый ops-журнал `/var/log/xeno/events.jsonl` (smoke, steal-watch restart+reason, sync_all start/end/error, alerts, sub 404, bot unhandled, support flood, godmode, sacred denial, deploy).
+- Digest: секция **Stability / security signals (last 24h)**.
+- Steal watchdog → `python -m diag.steal_watch` (лог причины перед restart).
+- Alert `reality_handshake_spike` (≥100/день).
+- Docs: [observability.md](observability.md). Logrotate покрывает `events.jsonl`.
+
+## 2026-08-05 (alerts stability)
+
+- Алерты: state machine open / remind(6h) / recover; стабильные fingerprints (больше не `sni:{count}` / `smoke:{id}`).
+- Smoke FAIL только после **2** подряд неудач.
+- SelfSteal: `Restart=always` + таймер `xenonet-steal-watch` (curl :9443 → restart).
+- Порог sni_spike 50; hop_stale смотрит last_seen за 3 дня и только если steal/relay здоровы.
+
+## 2026-08-05 (retail bypass)
+
+- Entry domestic bypass расширен (~100 доменов): маркетплейсы (Ozon/WB CDN), X5 (Пятёрочка/Перекрёсток/Чижик), ВкусВилл, Лента, Самокат, СберМаркет/Купер, Delivery Club, CDEK/Boxberry/Почта, электроника (М.Видео/DNS/Ситилинк), аптеки и DIY. Источник — v2fly domain-list + известные бренды. Нужен профиль **RU**.
+
+## 2026-08-05 (smoke steal)
+
+- Smoke: критичны `xeno-steal-nl` + локальный HTTPS на `:9443` (`nl_steal_https`) — ловит зависший SelfSteal до жалоб «RU мёртв / Direct ок».
 
 ## 2026-08-05 (вечер)
 

@@ -29,6 +29,12 @@ from provision import (
     xui,
 )
 from support import RateLimiter, classify_message, public_id as support_public_id
+from ops_events import (
+    KIND_BOT_UNHANDLED,
+    KIND_GODMODE,
+    KIND_SUPPORT_FLOOD,
+    emit as emit_ops,
+)
 from xray_sync import client_email
 
 logging.basicConfig(level=logging.INFO)
@@ -650,6 +656,12 @@ class TgBot:
         days: int,
     ) -> None:
         if not self.is_god(tg_id):
+            emit_ops(
+                KIND_GODMODE,
+                action="denied",
+                admin_tg_id=tg_id,
+                detail="god_create",
+            )
             await self.screen(
                 session,
                 chat_id=chat_id,
@@ -720,6 +732,13 @@ class TgBot:
             )
         except Exception as exc:
             log.exception("god create failed")
+            emit_ops(
+                KIND_GODMODE,
+                action="issue_fail",
+                admin_tg_id=admin_id,
+                days=days,
+                detail=type(exc).__name__,
+            )
             await self.send(
                 session,
                 chat_id,
@@ -727,6 +746,14 @@ class TgBot:
                 reply_markup=kb.god_home(),
             )
             return
+        emit_ops(
+            KIND_GODMODE,
+            action="issue_ok",
+            admin_tg_id=admin_id,
+            days=days,
+            issued_id=link.id,
+            assigned_tg_id=assigned_tg_id,
+        )
         await self.send(
             session,
             chat_id,
@@ -1126,6 +1153,12 @@ class TgBot:
         if kind == "empty":
             return False
         if not self.support_rate.allow(tg_id):
+            emit_ops(
+                KIND_SUPPORT_FLOOD,
+                tg_id=tg_id,
+                limit=self.settings.support_rate_limit,
+                window_sec=self.settings.support_rate_window_sec,
+            )
             await self.send(
                 session,
                 chat_id,
@@ -1751,6 +1784,11 @@ class TgBot:
                     )
                 except Exception as exc:
                     log.exception("getUpdates: %s", exc)
+                    emit_ops(
+                        KIND_BOT_UNHANDLED,
+                        where="getUpdates",
+                        error=type(exc).__name__,
+                    )
                     await asyncio.sleep(3)
                     continue
                 for upd in updates:
@@ -1760,8 +1798,14 @@ class TgBot:
                             await self.handle_callback(session, upd["callback_query"])
                         elif "message" in upd:
                             await self.handle_message(session, upd["message"])
-                    except Exception:
+                    except Exception as exc:
                         log.exception("update failed")
+                        emit_ops(
+                            KIND_BOT_UNHANDLED,
+                            where="update",
+                            error=type(exc).__name__,
+                            update_id=upd.get("update_id"),
+                        )
 
 
 async def amain() -> None:

@@ -8,6 +8,13 @@ from pathlib import Path
 from aiohttp import web
 
 from config import load_settings
+from ops_events import (
+    KIND_SUB_404,
+    emit as emit_ops,
+    hash_ip,
+    truncate_ip,
+    truncate_token,
+)
 from provision import sub_url
 
 _URI_PREFIXES = (
@@ -64,6 +71,32 @@ def _normalize_body(raw: str) -> tuple[str, bool]:
     return raw if raw.endswith("\n") else raw + "\n", False
 
 
+def build_sub_response_headers(*, web_page: str, is_json: bool) -> dict[str, str]:
+    """Happ subscription HTTP headers (shared with tests).
+
+    No subscription-autoconnect / lowestdelay: that silently picked NL Direct when
+    ping was lower and users thought RU was «dead». Client must pick 🇷🇺 RU manually.
+    No Content-Disposition: attachment — iOS Safari → «в разрешении отказано».
+    """
+    content_type = "application/json; charset=utf-8" if is_json else "text/plain; charset=utf-8"
+    announce = (
+        "XENO · вручную выберите 🇷🇺 RU (основной). NL Direct — только запасной. "
+        "После обновления подписки удалите старый профиль, если не коннектится."
+        if not is_json
+        else "XENO smart JSON. Если не коннектится — попросите links-формат."
+    )
+    return {
+        "Content-Type": content_type,
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "Profile-Update-Interval": "1",
+        "Profile-Title": "XENO.net",
+        "Profile-Web-Page-Url": web_page,
+        "Announce": _b64_header(announce),
+    }
+
+
 async def handle_sub(request: web.Request) -> web.Response:
     token = request.match_info["token"]
     settings = request.app["settings"]
@@ -72,36 +105,22 @@ async def handle_sub(request: web.Request) -> web.Response:
         alt = settings.sub_root / token / "index.txt"
         path = alt if alt.exists() else path
     if not path.exists():
+        peer = request.remote or ""
+        emit_ops(
+            KIND_SUB_404,
+            token_prefix=truncate_token(token),
+            ip_trunc=truncate_ip(peer),
+            ip_hash=hash_ip(peer),
+            req_path=str(request.path)[:80],
+        )
         return web.Response(status=404, text="not found")
     raw = path.read_text(encoding="utf-8")
     body, is_json = _normalize_body(raw)
     bust = int(path.stat().st_mtime) if path.exists() else int(time.time())
     web_page = f"{sub_url(settings, token)}?v={bust}"
-    # Happ iOS: plain URI list → text/plain; JSON balancer → application/json.
-    # No Content-Disposition: attachment — Safari/iOS may treat it as a file
-    # download and surface «в разрешении отказано» instead of importing into Happ.
-    content_type = "application/json; charset=utf-8" if is_json else "text/plain; charset=utf-8"
-    announce = (
-        "XENO · автовыбор живого сервера. Удалите старую подписку и добавьте заново."
-        if not is_json
-        else "XENO smart JSON. Если не коннектится — попросите links-формат."
-    )
     return web.Response(
         text=body,
-        headers={
-            "Content-Type": content_type,
-            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-            "Pragma": "no-cache",
-            "Expires": "0",
-            "Profile-Update-Interval": "1",
-            "Profile-Title": "XENO.net",
-            "Profile-Web-Page-Url": web_page,
-            # Happ: auto-pick lowest-delay alive node from the list on open
-            "subscription-autoconnect": "1",
-            "subscription-autoconnect-type": "lowestdelay",
-            "subscription-ping-onopen-enabled": "1",
-            "Announce": _b64_header(announce),
-        },
+        headers=build_sub_response_headers(web_page=web_page, is_json=is_json),
     )
 
 

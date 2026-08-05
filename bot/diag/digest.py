@@ -10,6 +10,7 @@ from typing import Any
 
 from db import Database
 from diag import HOP_EMAIL
+from ops_events import render_stability_section
 from xray_sync import client_email
 
 
@@ -191,6 +192,8 @@ def render_digest(db: Database, *, kind: str, day: date) -> str:
     lines += ["", "## Hints (manual fixes)", ""]
     for h in _hints(agg, hop_accepts, hop_last):
         lines.append(f"- {h}")
+
+    lines += [""] + render_stability_section(hours=24)
 
     lines += ["", "## Per user", "", "| User | RU | Direct | Rejects | Errors | Last RU | Last Direct | Traffic |", "|---|---:|---:|---:|---|---|---|---|"]
 

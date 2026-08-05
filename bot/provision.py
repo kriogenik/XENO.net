@@ -6,6 +6,12 @@ from pathlib import Path
 
 from config import Settings
 from db import Database, IssuedLink, User, UserLink
+from ops_events import (
+    KIND_SYNC_ALL_END,
+    KIND_SYNC_ALL_ERROR,
+    KIND_SYNC_ALL_START,
+    emit as emit_ops,
+)
 from xray_sync import (
     build_happ_balancer_config,
     build_profile_links,
@@ -240,7 +246,7 @@ def write_access_sub(settings: Settings, token: str, client_uuid: str, name: str
             balancer_config=balancer_for_uuid(settings, client_uuid, name=name),
         )
     else:
-        # URI list without HY2 (parked). Happ autoconnect picks lowest-delay alive.
+        # URI list without HY2 (parked). RU first; client picks 🇷🇺 manually in Happ.
         links = build_profile_links(
             client_uuid=client_uuid,
             name=name,
@@ -358,6 +364,7 @@ def sync_all(db: Database, settings: Settings, *, rewrite_subs: bool = True) -> 
     rewrite_subs=False: still hot-adds clients, but skips rewriting Happ sub files
     (use when adding a second link so existing device URLs stay untouched on disk).
     """
+    t0 = time.monotonic()
     uuids = db.list_active_client_uuids()
     if settings.bootstrap_client_uuid and settings.bootstrap_client_uuid not in uuids:
         uuids.insert(0, settings.bootstrap_client_uuid)
@@ -365,83 +372,111 @@ def sync_all(db: Database, settings: Settings, *, rewrite_subs: bool = True) -> 
     if settings.bootstrap_client_uuid and settings.bootstrap_client_uuid not in emails:
         emails[settings.bootstrap_client_uuid] = client_email(settings.bootstrap_client_uuid)
 
-    try:
-        sync_xui_clients(db, settings)
-    except Exception as e:
-        _append_provision_log(f"xui sync warn: {e}")
-        raise
-
-    sync_xray_clients_remote(
-        ru_host=settings.ru_ssh_host,
-        ru_user=settings.ru_ssh_user,
-        ru_password=settings.ru_ssh_pass,
-        remote_config_path=settings.ru_xray_config,
-        client_uuids=uuids,
-        bridge_private_key=settings.reality_private_key,
-        bridge_short_id=settings.reality_sid,
-        bridge_dest=settings.reality_dest,
-        bridge_sni=settings.reality_sni,
-        bridge_path=settings.bridge_path,
-        nl_exit_ip=settings.nl_exit_ip,
-        relay_uuid=settings.relay_uuid,
-        relay_public_key=settings.relay_public_key,
-        relay_short_id=settings.relay_short_id,
-        relay_sni=settings.relay_sni,
-        relay_path=settings.relay_path,
-        relay_port=settings.relay_port,
-        client_port=settings.client_port,
-        client_emails=emails,
+    emit_ops(
+        KIND_SYNC_ALL_START,
+        clients=len(uuids),
+        rewrite_subs=bool(rewrite_subs),
+        backups=bool(settings.backups_enabled),
     )
-    if settings.backups_enabled:
+    try:
         try:
-            sync_nl_direct_clients_local(
-                uuids,
-                config_path=settings.nl_relay_config,
-                client_emails=emails,
-            )
-            if settings.hy2_enabled:
-                sync_hy2_users_local(uuids, config_path=settings.hy2_config)
-            else:
-                _append_provision_log("hy2 parked (HY2_ENABLED=0) — skip sync/restart")
+            sync_xui_clients(db, settings)
         except Exception as e:
-            _append_provision_log(f"backup sync warn: {e}")
+            _append_provision_log(f"xui sync warn: {e}")
             raise
-    if rewrite_subs:
+
+        sync_xray_clients_remote(
+            ru_host=settings.ru_ssh_host,
+            ru_user=settings.ru_ssh_user,
+            ru_password=settings.ru_ssh_pass,
+            remote_config_path=settings.ru_xray_config,
+            client_uuids=uuids,
+            bridge_private_key=settings.reality_private_key,
+            bridge_short_id=settings.reality_sid,
+            bridge_dest=settings.reality_dest,
+            bridge_sni=settings.reality_sni,
+            bridge_path=settings.bridge_path,
+            nl_exit_ip=settings.nl_exit_ip,
+            relay_uuid=settings.relay_uuid,
+            relay_public_key=settings.relay_public_key,
+            relay_short_id=settings.relay_short_id,
+            relay_sni=settings.relay_sni,
+            relay_path=settings.relay_path,
+            relay_port=settings.relay_port,
+            client_port=settings.client_port,
+            client_emails=emails,
+        )
+        if settings.backups_enabled:
+            try:
+                sync_nl_direct_clients_local(
+                    uuids,
+                    config_path=settings.nl_relay_config,
+                    client_emails=emails,
+                )
+                if settings.hy2_enabled:
+                    sync_hy2_users_local(uuids, config_path=settings.hy2_config)
+                else:
+                    _append_provision_log("hy2 parked (HY2_ENABLED=0) — skip sync/restart")
+            except Exception as e:
+                _append_provision_log(f"backup sync warn: {e}")
+                raise
+        if rewrite_subs:
+            for u in db.list_active_users():
+                write_access_sub(settings, u.sub_token, u.client_uuid, name="XENO")
+                _seed_diag_row(
+                    db,
+                    client_email(u.client_uuid, tg_id=u.tg_id, slot=1),
+                    provisioned_at=u.created_at,
+                )
+            for parent, ulink in db.list_active_extra_links():
+                write_access_sub(
+                    settings, ulink.sub_token, ulink.client_uuid, name=ulink.profile_name
+                )
+                _seed_diag_row(
+                    db,
+                    client_email(ulink.client_uuid, tg_id=parent.tg_id, slot=ulink.slot),
+                    provisioned_at=ulink.created_at,
+                )
+            for link in db.list_active_issued():
+                write_access_sub(
+                    settings, link.sub_token, link.client_uuid, name=f"XENO #{link.id}"
+                )
+                _seed_diag_row(
+                    db,
+                    client_email(
+                        link.client_uuid, tg_id=link.assigned_tg_id, issued_id=link.id
+                    ),
+                    provisioned_at=link.created_at,
+                )
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         for u in db.list_active_users():
-            write_access_sub(settings, u.sub_token, u.client_uuid, name="XENO")
-            _seed_diag_row(
-                db,
-                client_email(u.client_uuid, tg_id=u.tg_id, slot=1),
-                provisioned_at=u.created_at,
+            _append_provision_log(
+                f"{ts} user tg_id={u.tg_id} uuid={u.client_uuid} "
+                f"email={client_email(u.client_uuid, tg_id=u.tg_id)} sni={settings.reality_sni} "
+                f"backups={int(settings.backups_enabled)} sub={settings.sub_format}"
             )
         for parent, ulink in db.list_active_extra_links():
-            write_access_sub(
-                settings, ulink.sub_token, ulink.client_uuid, name=ulink.profile_name
+            _append_provision_log(
+                f"{ts} user_link tg_id={parent.tg_id} slot={ulink.slot} uuid={ulink.client_uuid} "
+                f"email={client_email(ulink.client_uuid, tg_id=parent.tg_id, slot=ulink.slot)} "
+                f"sni={settings.reality_sni}"
             )
-            _seed_diag_row(
-                db,
-                client_email(ulink.client_uuid, tg_id=parent.tg_id, slot=ulink.slot),
-                provisioned_at=ulink.created_at,
-            )
-        for link in db.list_active_issued():
-            write_access_sub(settings, link.sub_token, link.client_uuid, name=f"XENO #{link.id}")
-            _seed_diag_row(
-                db,
-                client_email(link.client_uuid, tg_id=link.assigned_tg_id, issued_id=link.id),
-                provisioned_at=link.created_at,
-            )
-    ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    for u in db.list_active_users():
-        _append_provision_log(
-            f"{ts} user tg_id={u.tg_id} uuid={u.client_uuid} "
-            f"email={client_email(u.client_uuid, tg_id=u.tg_id)} sni={settings.reality_sni} "
-            f"backups={int(settings.backups_enabled)} sub={settings.sub_format}"
+    except Exception as e:
+        emit_ops(
+            KIND_SYNC_ALL_ERROR,
+            error=type(e).__name__,
+            detail=str(e)[:200],
+            duration_ms=int((time.monotonic() - t0) * 1000),
+            clients=len(uuids),
         )
-    for parent, ulink in db.list_active_extra_links():
-        _append_provision_log(
-            f"{ts} user_link tg_id={parent.tg_id} slot={ulink.slot} uuid={ulink.client_uuid} "
-            f"email={client_email(ulink.client_uuid, tg_id=parent.tg_id, slot=ulink.slot)} "
-            f"sni={settings.reality_sni}"
+        raise
+    else:
+        emit_ops(
+            KIND_SYNC_ALL_END,
+            ok=True,
+            clients=len(uuids),
+            rewrite_subs=bool(rewrite_subs),
+            duration_ms=int((time.monotonic() - t0) * 1000),
         )
 
 
