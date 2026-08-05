@@ -18,6 +18,7 @@ EVENTS_LOG = Path("/var/log/xeno/events.jsonl")
 # Known kinds (documentation / digest filters). Unknown kinds still accepted.
 KIND_SMOKE_RESULT = "smoke_result"
 KIND_STEAL_WATCH_RESTART = "steal_watch_restart"
+KIND_HOP_CANARY = "hop_canary"
 KIND_SYNC_ALL_START = "sync_all_start"
 KIND_SYNC_ALL_END = "sync_all_end"
 KIND_SYNC_ALL_ERROR = "sync_all_error"
@@ -183,6 +184,8 @@ def summarize_last_hours(
     smoke_fail = 0
     sync_errors: list[str] = []
     steal_reasons: Counter[str] = Counter()
+    hop_canary_ok = 0
+    hop_canary_fail = 0
     sub_404_ips: Counter[str] = Counter()
     god_actions: Counter[str] = Counter()
     alert_actions: Counter[str] = Counter()
@@ -200,6 +203,11 @@ def summarize_last_hours(
                 smoke_fail += 1
         elif kind == KIND_STEAL_WATCH_RESTART:
             steal_reasons[str(ev.get("reason") or "unknown")] += 1
+        elif kind == KIND_HOP_CANARY:
+            if ev.get("ok"):
+                hop_canary_ok += 1
+            else:
+                hop_canary_fail += 1
         elif kind == KIND_SYNC_ALL_ERROR:
             err = str(ev.get("error") or ev.get("detail") or "?")[:120]
             sync_errors.append(err)
@@ -226,6 +234,8 @@ def summarize_last_hours(
         "smoke_fail": smoke_fail,
         "steal_restarts": int(counts.get(KIND_STEAL_WATCH_RESTART, 0)),
         "steal_reasons": dict(steal_reasons),
+        "hop_canary_ok": hop_canary_ok,
+        "hop_canary_fail": hop_canary_fail,
         "sync_errors": sync_errors[-5:],
         "sync_error_n": len(sync_errors),
         "sub_404": int(counts.get(KIND_SUB_404, 0)),
@@ -263,6 +273,10 @@ def render_stability_section(summary: dict[str, Any] | None = None, *, hours: fl
         lines.append(f"- Steal watch restarts · **{steal_n}** ({reasons})")
     else:
         lines.append("- Steal watch restarts · **0**")
+
+    hc_ok = int(s.get("hop_canary_ok") or 0)
+    hc_fail = int(s.get("hop_canary_fail") or 0)
+    lines.append(f"- Hop Reality canary · OK **{hc_ok}** · FAIL **{hc_fail}**")
 
     sync_n = int(s.get("sync_error_n") or 0)
     lines.append(f"- sync_all errors · **{sync_n}**")

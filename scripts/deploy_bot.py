@@ -273,6 +273,36 @@ WantedBy=timers.target
 """
     sftp_write(c, "/etc/systemd/system/xenonet-steal-watch.service", steal_watch_unit)
     sftp_write(c, "/etc/systemd/system/xenonet-steal-watch.timer", steal_watch_timer)
+
+    # Hop Reality canary: TCP :8443 alone is not enough — need VLESS+Reality handshake.
+    hop_watch_unit = f"""[Unit]
+Description=XENO.net hop Reality canary (:8443 → SelfSteal)
+After=network-online.target xeno-relay.service xeno-steal-nl.service
+
+[Service]
+Type=oneshot
+WorkingDirectory={app}
+EnvironmentFile={conf}/bridge.env
+EnvironmentFile={conf}/bot.env
+ExecStart={py} -m diag.hop_watch
+Nice=10
+"""
+    hop_watch_timer = """[Unit]
+Description=XENO.net hop Reality canary every 3 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=3min
+AccuracySec=30s
+Persistent=true
+Unit=xenonet-hop-watch.service
+
+[Install]
+WantedBy=timers.target
+"""
+    sftp_write(c, "/etc/systemd/system/xenonet-hop-watch.service", hop_watch_unit)
+    sftp_write(c, "/etc/systemd/system/xenonet-hop-watch.timer", hop_watch_timer)
+
     # Harden live steal unit if present (Restart=always).
     run(
         c,
@@ -325,7 +355,7 @@ WantedBy=timers.target
         "systemctl daemon-reload && "
         "systemctl enable xenonet-bot xenonet-sub "
         "xenonet-diag-collect.timer xenonet-diag-digest.timer xenonet-diag-smoke.timer "
-        "xenonet-expiry-nudge.timer xenonet-steal-watch.timer && "
+        "xenonet-expiry-nudge.timer xenonet-steal-watch.timer xenonet-hop-watch.timer && "
         "systemctl restart xenonet-sub && "
         "systemctl restart xenonet-bot && "
         "systemctl restart xenonet-diag-collect.timer && "
@@ -333,20 +363,24 @@ WantedBy=timers.target
         "systemctl restart xenonet-diag-smoke.timer && "
         "systemctl restart xenonet-expiry-nudge.timer && "
         "systemctl restart xeno-steal-nl || true; "
-        "systemctl restart xenonet-steal-watch.timer || true",
+        "systemctl restart xenonet-steal-watch.timer || true; "
+        "systemctl restart xenonet-hop-watch.timer || true",
     )
     run(
         c,
         "systemctl is-active xenonet-bot xenonet-sub xeno-bot x-ui xeno-relay "
         "xenonet-diag-collect.timer xenonet-diag-digest.timer xenonet-diag-smoke.timer "
-        "xenonet-expiry-nudge.timer xenonet-steal-watch.timer || true",
+        "xenonet-expiry-nudge.timer xenonet-steal-watch.timer xenonet-hop-watch.timer || true",
         check=False,
     )
-    # First collect + smoke + daily digest so files exist immediately
+    # First hop canary + smoke + digest via systemd units (they load EnvironmentFiles).
+    # Bare `python -m diag.hop_watch` without bridge.env → false missing_relay_env / hop_reality.
     run(
         c,
-        f"cd {app} && {py} -m diag --smoke-only --alerts; "
-        f"cd {app} && {py} -m diag --emit day --alerts",
+        "systemctl start xenonet-hop-watch.service; "
+        f"cd {app} && set -a && . {conf}/bridge.env && . {conf}/bot.env && . {conf}/ru-ssh.env && set +a && "
+        f"{py} -m diag --smoke-only --alerts && "
+        f"{py} -m diag --emit day --alerts",
         check=False,
     )
     run(c, "journalctl -u xenonet-bot -n 25 --no-pager", check=False)

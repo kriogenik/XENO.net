@@ -39,6 +39,7 @@ CASCADE_SPLIT_MIN_RU_ACCEPTS = 15
 
 # Keys we manage recovery for
 TRACKED_KEYS = (
+    "hop_reality",
     "hop_stale",
     "cascade_split",
     "unit_xeno_relay",
@@ -163,44 +164,70 @@ def evaluate_alerts(db: Database, settings: Settings) -> list[Alert]:
                 fingerprint="hung",
                 text="XENO alert · SelfSteal :9443 not answering HTTPS. "
                 "RU cascade hop broken; NL Direct may still work. "
-                "Run: systemctl restart xeno-steal-nl",
+                "Run: systemctl restart xeno-steal-nl — docs/ops/incident-cascade.md",
             )
         )
 
-    # Hop quiet only if steal/relay look healthy — otherwise steal/relay alerts cover it.
+    # Cascade health chain (first match wins for overlapping symptoms):
+    # 1) units / steal HTTPS  2) live hop Reality canary  3) log-derived split/stale
+    hop_reality_down = False
     if steal_unit and steal_https and relay_ok:
-        hop_last = _hop_last_seen(db)
-        if hop_last and (now - hop_last) > HOP_STALE_SEC:
-            age_h = (now - hop_last) / 3600
-            out.append(
-                Alert(
-                    key="hop_stale",
-                    fingerprint="stale",
-                    text=(
-                        f"XENO alert · hop quiet ~{age_h:.0f}h "
-                        f"(last_seen {_fmt(hop_last)}). Steal/relay up — check clients / :8443."
-                    ),
-                )
-            )
+        try:
+            from diag.hop_probe import canary_alerting, read_state
 
-        # Cascade split: clients reach RU entry but hop to NL is dead (steal/relay look up).
-        ru_accepts = 0
-        for r in db.diag_list_user_days(day, day):
-            if r.get("email") == HOP_EMAIL:
-                continue
-            ru_accepts += int(r.get("accepts_ru") or 0)
-        hop_silent = (hop_last is None) or ((now - int(hop_last)) > CASCADE_SPLIT_HOP_SILENT_SEC)
-        if ru_accepts >= CASCADE_SPLIT_MIN_RU_ACCEPTS and hop_silent:
-            out.append(
-                Alert(
-                    key="cascade_split",
-                    fingerprint="split",
-                    text=(
-                        f"XENO alert · cascade split: RU accepts ×{ru_accepts} today but hop quiet "
-                        f"(last {_fmt(hop_last)}). Check :8443 / SelfSteal :9443 — Direct may work."
-                    ),
+            st = read_state()
+            if canary_alerting(st):
+                hop_reality_down = True
+                detail = str(st.get("detail") or "fail")
+                fails = int(st.get("consecutive_fail") or 0)
+                out.append(
+                    Alert(
+                        key="hop_reality",
+                        fingerprint="down",
+                        text=(
+                            f"XENO alert · hop Reality canary FAIL ×{fails} "
+                            f"(:8443 → :19443, detail={detail}). "
+                            "RU cascade broken; Direct may work. "
+                            "See docs/ops/incident-cascade.md"
+                        ),
+                    )
                 )
-            )
+        except Exception:
+            hop_reality_down = False
+
+        hop_last = _hop_last_seen(db)
+        # Log-derived signals only when live canary is not already screaming.
+        if not hop_reality_down:
+            if hop_last and (now - hop_last) > HOP_STALE_SEC:
+                age_h = (now - hop_last) / 3600
+                out.append(
+                    Alert(
+                        key="hop_stale",
+                        fingerprint="stale",
+                        text=(
+                            f"XENO alert · hop quiet ~{age_h:.0f}h "
+                            f"(last_seen {_fmt(hop_last)}). Canary OK — check clients / LTE."
+                        ),
+                    )
+                )
+
+            ru_accepts = 0
+            for r in db.diag_list_user_days(day, day):
+                if r.get("email") == HOP_EMAIL:
+                    continue
+                ru_accepts += int(r.get("accepts_ru") or 0)
+            hop_silent = (hop_last is None) or ((now - int(hop_last)) > CASCADE_SPLIT_HOP_SILENT_SEC)
+            if ru_accepts >= CASCADE_SPLIT_MIN_RU_ACCEPTS and hop_silent:
+                out.append(
+                    Alert(
+                        key="cascade_split",
+                        fingerprint="split",
+                        text=(
+                            f"XENO alert · cascade split: RU accepts ×{ru_accepts} today but hop quiet "
+                            f"(last {_fmt(hop_last)}). Canary may be stale — see incident-cascade.md"
+                        ),
+                    )
+                )
 
     if not _unit_active("xenonet-bot"):
         out.append(

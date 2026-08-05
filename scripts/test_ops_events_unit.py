@@ -16,6 +16,7 @@ from db import Database  # noqa: E402
 from diag.digest import render_digest  # noqa: E402
 from ops_events import (  # noqa: E402
     KIND_BOT_UNHANDLED,
+    KIND_HOP_CANARY,
     KIND_SMOKE_RESULT,
     KIND_STEAL_WATCH_RESTART,
     KIND_SUB_404,
@@ -51,6 +52,8 @@ def test_emit_and_summarize() -> None:
             reason="https_9443_no_response",
             action="systemctl_restart_xeno-steal-nl",
         )
+        emit(KIND_HOP_CANARY, log_path=log, ok=True, detail="http_200")
+        emit(KIND_HOP_CANARY, log_path=log, ok=False, detail="curl_rc=28", consecutive_fail=2)
         emit(
             KIND_SUB_404,
             log_path=log,
@@ -62,7 +65,7 @@ def test_emit_and_summarize() -> None:
         emit(KIND_BOT_UNHANDLED, log_path=log, where="update", error="ValueError")
 
         lines = log.read_text(encoding="utf-8").strip().splitlines()
-        assert len(lines) == 6
+        assert len(lines) == 8
         for line in lines:
             obj = json.loads(line)
             assert "ts" in obj and "kind" in obj
@@ -74,6 +77,8 @@ def test_emit_and_summarize() -> None:
         assert summary["smoke_ok"] == 1
         assert summary["smoke_fail"] == 1
         assert summary["steal_restarts"] == 1
+        assert summary["hop_canary_ok"] == 1
+        assert summary["hop_canary_fail"] == 1
         assert summary["sub_404"] == 1
         assert summary["bot_unhandled"] == 1
         assert summary["sync_error_n"] == 1
@@ -81,6 +86,7 @@ def test_emit_and_summarize() -> None:
         md = "\n".join(render_stability_section(summary))
         assert "Stability / security" in md
         assert "Steal watch restarts" in md
+        assert "Hop Reality canary" in md
         assert "Sub invalid token" in md
         print("OK emit/summarize")
 

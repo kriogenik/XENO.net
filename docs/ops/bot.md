@@ -48,9 +48,10 @@ python scripts/migrate_steal_nginx.py
 
 ## Таймеры
 
-Collect / smoke / digests / expiry nags / steal-watch — systemd timers на exit-ноде.  
+Collect / smoke / digests / expiry nags / steal-watch / hop-watch — systemd timers на exit-ноде.  
 Алерты только `ADMIN_IDS`. Дайджесты — файлы на диске, без истории серфинга.  
-Ops-события: `/var/log/xeno/events.jsonl` — см. [observability.md](observability.md).
+Ops-события: `/var/log/xeno/events.jsonl` — см. [observability.md](observability.md).  
+Инцидент каскада: [incident-cascade.md](incident-cascade.md).
 
 ## Godmode
 

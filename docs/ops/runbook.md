@@ -21,7 +21,7 @@
 | SNI mismatch spike | устаревшие профили Happ |
 | Диск / unit down | алерты админам, journalctl |
 | «RU мёртв» у части, Direct ок | [common-issues.md](common-issues.md) — чаще Happ autoconnect / выбор Direct |
-| Hop accepts = 0, entry accepts есть | SelfSteal NL :9443 (nginx) down → `systemctl restart xeno-steal-nl`; см. common-issues / `cascade_split` |
+| Hop accepts = 0, entry accepts есть | см. [incident-cascade.md](incident-cascade.md) — steal `:9443` → hop canary `:8443` |
 | iOS тип контента / отказано | plain sub, без Content-Disposition — см. common-issues |
 
 Подробная матрица клиентских кейсов: **[common-issues.md](common-issues.md)**.
@@ -43,4 +43,6 @@ Collect каждые 5 мин и smoke каждый час вызывают `may
 
 Типичный спам раньше: `sni_spike` с fingerprint `sni:{count}` — счётчик рос → кулдаун сбрасывался каждые 5 мин. Сейчас fingerprint = `day:YYYY-MM-DD`.
 
-SelfSteal: таймер `xenonet-steal-watch` (2 мин) рестартит `xeno-steal-nl`, если `https://127.0.0.1:9443/` не отвечает.
+SelfSteal: таймер `xenonet-steal-watch` (2 мин) рестартит `xeno-steal-nl`, если `https://127.0.0.1:9443/` не отвечает.  
+Hop Reality: таймер `xenonet-hop-watch` (3 мин) пишет `/var/log/xeno/hop_canary.json`; алерт `hop_reality` после 2 FAIL. Не рестартит relay сам.  
+Полный чеклист: [incident-cascade.md](incident-cascade.md).

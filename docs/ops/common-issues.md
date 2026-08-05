@@ -10,7 +10,7 @@
 | Неизвестный тип контента (iOS) | Тело подписки было base64 | Plain `vless://` + `text/plain` | Переимпорт той же `https://` ссылки |
 | В разрешении отказано (iOS) | `Content-Disposition: attachment` | Заголовок убран | Переимпорт; Настройки → Happ → VPN |
 | «RU мёртв», Direct работает | Happ autoconnect → NL Direct | **Autoconnect отключён** | Вручную **🇷🇺 RU**; не Direct |
-| «RU мёртв» у всех, Direct OK, hop=0 | SelfSteal `xeno-steal-nl` (:9443, nginx) не отвечает → Reality :8443 не рукопожается | `systemctl restart xeno-steal-nl`; `curl -sk https://127.0.0.1:9443/`; при залипшем порте — `fuser -k 9443/tcp` и снова start | После фикса hop — снова **🇷🇺 RU** |
+| «RU мёртв» у всех, Direct OK, hop=0 | SelfSteal или hop Reality | см. [incident-cascade.md](incident-cascade.md): curl `:9443` → `hop_watch` → restart steal/relay | После фикса — снова **🇷🇺 RU** |
 | Ozon / Магнит / WB / продукты / доставка видят VPN | CDN вне `geoip:ru` → NL hop | Явный bypass на entry (маркетплейсы, X5, ВкусВилл, Самокат, СберМаркет, CDEK, …) | Профиль **🇷🇺 RU** + обновить подписку |
 | Кино / сериалы (bumazhniy-dom и др.) видят VPN | .com-портал вне geosite → NL hop | `geosite:category-entertainment-ru` + явные media-домены → direct на entry | Профиль **🇷🇺 RU** + обновить подписку |
 | Старая клавиатура бота | Telegram не обновляет inline на старых сообщениях | `/start` шлёт новое сообщение | `/start` → заново открыть экран |
@@ -28,7 +28,7 @@ python scripts/show_digest.py
 
 Если smoke OK, hop fresh, UUID на RU и NL, а у одного юзера только Direct в логах — это **выбор профиля в Happ**, не падение RU.
 
-Если в `nl-relay-access.log` **нет** `xeno-relay-hop` давно, а entry всё ещё пишет `accepted … [client-in -> nl-exit]` — cascade мёртв на hop. Частый виновник: `curl -sk https://127.0.0.1:9443/` таймаут → SelfSteal (nginx) down. Алерт `cascade_split` / smoke `nl_steal_https`. Не путать с UUID/SNI юзера.
+Если в `nl-relay-access.log` **нет** `xeno-relay-hop` давно, а entry всё ещё пишет `accepted … [client-in -> nl-exit]` — cascade мёртв на hop. Смотри [incident-cascade.md](incident-cascade.md): `curl :9443`, `hop_canary.json` / `diag.hop_watch`. Алерт `hop_reality` / `cascade_split`. Не путать с UUID/SNI юзера.
 
 ## Профилактика (оператор)
 

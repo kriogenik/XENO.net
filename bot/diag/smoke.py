@@ -15,6 +15,7 @@ from config import Settings
 from db import Database
 from diag import DIGEST_ROOT
 from ops_events import KIND_SMOKE_RESULT, emit as emit_ops
+from diag.hop_probe import probe_hop_reality
 
 
 SMOKE_DIR = Path(DIGEST_ROOT) / "smoke"
@@ -96,6 +97,9 @@ def run_smoke(db: Database, settings: Settings) -> dict[str, Any]:
     checks["nl_xeno_relay"] = _unit_active("xeno-relay")
     checks["nl_xeno_steal"] = _unit_active("xeno-steal-nl")
     checks["nl_steal_https"] = _steal_https_ok()
+    hop_probe = probe_hop_reality(timeout=20.0)
+    checks["nl_hop_reality"] = bool(hop_probe.ok)
+    checks["nl_hop_reality_detail"] = hop_probe.detail
     checks["nl_xenonet_bot"] = _unit_active("xenonet-bot")
     checks["nl_xenonet_sub"] = _unit_active("xenonet-sub")
     checks["tcp_ru_443"] = _tcp_ok(settings.ru_public_ip or settings.ru_public_host, settings.client_port)
@@ -109,7 +113,7 @@ def run_smoke(db: Database, settings: Settings) -> dict[str, Any]:
 
     hops = db.diag_get_hop_days(day, day)
     hop_last = int(hops[0]["last_seen"]) if hops and hops[0].get("last_seen") else None
-    # Soft signal: quiet nights may have no hop traffic; steal HTTPS is the hard check.
+    # Soft signal: quiet nights may have no client hop traffic; live canary is the hard check.
     hop_fresh = bool(hop_last and (now - hop_last) < 2 * 3600)
     checks["hop_fresh_2h"] = hop_fresh
     checks["hop_last_seen"] = hop_last
@@ -121,6 +125,7 @@ def run_smoke(db: Database, settings: Settings) -> dict[str, Any]:
         "nl_xeno_relay",
         "nl_xeno_steal",
         "nl_steal_https",
+        "nl_hop_reality",
         "nl_xenonet_bot",
         "nl_xenonet_sub",
         "ru_xray",
@@ -163,9 +168,11 @@ def _write_smoke_file(*, ok: bool, summary: str, checks: dict[str, Any], canary:
         "",
         "## Notes",
         "",
-        "- Critical: nl_xeno_relay, nl_xeno_steal, nl_steal_https, nl_xenonet_bot, nl_xenonet_sub, "
-        "ru_xray, tcp_ru_443, tcp_nl_relay, sub_public_https",
+        "- Critical: nl_xeno_relay, nl_xeno_steal, nl_steal_https, nl_hop_reality, nl_xenonet_bot, "
+        "nl_xenonet_sub, ru_xray, tcp_ru_443, tcp_nl_relay, sub_public_https",
+        "- `nl_hop_reality`: local VLESS+Reality to :8443 → HTTP :19443 canary (no third-party URLs)",
         "- Hung SelfSteal (:9443) breaks Reality hop for all RU cascade users — Direct stays up",
+        "- Incident steps: docs/ops/incident-cascade.md",
         "- Canary UUID for Reality experiments: "
         + (canary[:8] + "…" if canary else "unset (`CANARY_CLIENT_UUID` / bootstrap)"),
         "- No destination URLs collected",

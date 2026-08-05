@@ -19,6 +19,7 @@
 |------|--------|----------------|
 | `smoke_result` | hourly smoke | `ok`, `summary`, `failed` |
 | `steal_watch_restart` | watchdog рестартит SelfSteal | `reason` (`https_9443_no_response`), `action` |
+| `hop_canary` | Reality canary :8443 | `ok`, `detail`, `consecutive_fail`, `elapsed_ms` |
 | `sync_all_start` / `sync_all_end` / `sync_all_error` | `provision.sync_all` | `clients`, `duration_ms`, `error`/`detail` |
 | `alert_open` / `alert_remind` / `alert_recover` | Telegram alert FSM | `key`, `fingerprint` |
 | `sub_404` | неверный sub token | `token_prefix` (4 символа…), `ip_trunc`, `ip_hash` |
@@ -64,11 +65,15 @@ tail -n 200 /var/log/xeno/events.jsonl | jq -r 'select(.kind=="alert_open") | [.
 - `xenonet-diag-collect.timer` — 5 мин, ingest + alerts  
 - `xenonet-diag-smoke.timer` — 1 ч  
 - `xenonet-diag-digest.timer` — 03:10 UTC  
-- `xenonet-steal-watch.timer` — 2 мин → `python -m diag.steal_watch`
+- `xenonet-steal-watch.timer` — 2 мин → `python -m diag.steal_watch`  
+- `xenonet-hop-watch.timer` — 3 мин → `python -m diag.hop_watch` (Reality :8443 → SelfSteal)
 
 ## Алерты (Telegram)
 
-Ключи: `hop_stale`, `cascade_split` (RU accepts, hop quiet ≥45м), `unit_xeno_relay`, `unit_xeno_steal`, `steal_https`, `unit_bot`, `unit_sub`, `disk`, `sni_spike`, `reality_handshake_spike` (≥100/день), `sub_404_spike` (≥30/час), `smoke_fail` (×2 подряд).
+Ключи: `hop_reality` (canary ×2+), `hop_stale`, `cascade_split` (RU accepts, hop quiet ≥45м), `unit_xeno_relay`, `unit_xeno_steal`, `steal_https`, `unit_bot`, `unit_sub`, `disk`, `sni_spike`, `reality_handshake_spike` (≥100/день), `sub_404_spike` (≥30/час), `smoke_fail` (×2 подряд).
+
+Цепочка (пересечения глушатся): **steal/units → hop_reality → cascade_split / hop_stale**.  
+Инцидент «все RU лежат»: [incident-cascade.md](incident-cascade.md).
 
 Переходы open / remind(6h) / recover пишутся в `events.jsonl`.
 
@@ -79,6 +84,7 @@ tail -n 200 /var/log/xeno/events.jsonl | jq -r 'select(.kind=="alert_open") | [.
 В daily/weekly/monthly Markdown после Hints:
 
 - smoke OK/FAIL counts  
+- hop Reality canary OK/FAIL  
 - steal watch restarts + reason  
 - sync_all errors  
 - sub 404 count + top truncated IPs  
@@ -98,9 +104,10 @@ tail -n 200 /var/log/xeno/events.jsonl | jq -r 'select(.kind=="alert_open") | [.
 ## Остаточные слепые зоны (честно)
 
 - Нет MITM и **нет логов destinations** (куда ходил клиент) — политика privacy.  
-- SelfSteal = dedicated nginx на `:9443` (`access_log off`); здоровье — HTTPS probe + `xenonet-steal-watch`.  
+- SelfSteal = dedicated nginx на `:9443` (`access_log off`); здоровье — HTTPS probe + `xenonet-steal-watch`.
+- Hop Reality = локальный canary (`hop_canary.json` + `xenonet-hop-watch`): VLESS на `:8443` → HTTP `127.0.0.1:19443` (исключение из private-block). Чужие URL не трогает.  
 - HY2: unit есть, отдельного access-журнала в продукте нет (сейчас parked).  
 - Нет Prometheus/Sentry/APM — files + Telegram + digest.  
 - SSH mid-sync: `sync_all_error` + journal; полный SSH transcript не пишем.
 
-См. также: [runbook.md](runbook.md), [common-issues.md](common-issues.md), [bot.md](bot.md).
+См. также: [incident-cascade.md](incident-cascade.md), [runbook.md](runbook.md), [common-issues.md](common-issues.md), [bot.md](bot.md).

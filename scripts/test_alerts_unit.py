@@ -40,18 +40,26 @@ def test_sni_fingerprint_stable_across_rising_count() -> None:
         db = Database(Path(td) / "t.db")
         day = time.strftime("%Y-%m-%d", time.gmtime())
         db.diag_ensure_user_day(day, "tg-1")
-        # simulate rising sni via error_classes in evaluate — patch list
+        call_n = {"n": 0}
+
+        def users(_a, _b):
+            call_n["n"] += 1
+            # evaluate_alerts may call list_user_days twice (cascade + sni)
+            count = 55 if call_n["n"] <= 2 else 90
+            return [{"email": "tg-1", "error_classes": json.dumps({"sni_mismatch": count})}]
+
+        import json
+
         with patch.object(al, "_unit_active", return_value=True), patch.object(
             al, "_steal_https_ok", return_value=True
         ), patch.object(al, "_disk_pct", return_value=10.0), patch.object(
-            db,
-            "diag_list_user_days",
-            side_effect=[
-                [{"email": "tg-1", "error_classes": '{"sni_mismatch": 55}'}],
-                [{"email": "tg-1", "error_classes": '{"sni_mismatch": 90}'}],
-            ],
+            db, "diag_list_user_days", side_effect=users
         ), patch.object(db, "diag_smoke_recent", return_value=[]), patch.object(
             db, "diag_get_hop_days", return_value=[{"last_seen": int(time.time())}]
+        ), patch(
+            "diag.hop_probe.canary_alerting", return_value=False
+        ), patch(
+            "diag.hop_probe.read_state", return_value={"ok": True}
         ):
             a1 = al.evaluate_alerts(db, _settings(Path(td) / "t.db"))
             a2 = al.evaluate_alerts(db, _settings(Path(td) / "t.db"))
@@ -122,6 +130,10 @@ def test_smoke_needs_two_fails() -> None:
             db,
             "diag_smoke_recent",
             return_value=[{"ok": 0, "summary": "FAIL x", "created_at": now}],
+        ), patch(
+            "diag.hop_probe.canary_alerting", return_value=False
+        ), patch(
+            "diag.hop_probe.read_state", return_value={"ok": True}
         ):
             one = al.evaluate_alerts(db, _settings(db_path))
         assert not any(a.key == "smoke_fail" for a in one)
@@ -138,6 +150,10 @@ def test_smoke_needs_two_fails() -> None:
                 {"ok": 0, "summary": "FAIL x", "created_at": now},
                 {"ok": 0, "summary": "FAIL x", "created_at": now - 60},
             ],
+        ), patch(
+            "diag.hop_probe.canary_alerting", return_value=False
+        ), patch(
+            "diag.hop_probe.read_state", return_value={"ok": True}
         ):
             two = al.evaluate_alerts(db, _settings(db_path))
         assert any(a.key == "smoke_fail" and a.fingerprint == "down" for a in two)

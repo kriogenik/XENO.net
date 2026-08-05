@@ -127,6 +127,12 @@
       },
       {
         "type": "field",
+        "ip": ["127.0.0.1"],
+        "port": "19443",
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
         "ip": ["geoip:private"],
         "outboundTag": "block"
       },

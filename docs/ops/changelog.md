@@ -6,6 +6,13 @@
 
 ## 2026-08
 
+## 2026-08-05 (hop Reality canary)
+
+- Живой canary `:8443`: `diag.hop_watch` каждые 3 мин — VLESS+Reality → HTTP `127.0.0.1:19443` (узкое исключение из `geoip:private`→block; иначе ложный FAIL при живом каскаде).
+- State `/var/log/xeno/hop_canary.json`; алерт `hop_reality` после ≥2 FAIL; `canary_busy` не эскалирует.
+- Smoke critical: `nl_hop_reality`. Цепочка: units/steal → canary → log split/stale.
+- Чеклист: [incident-cascade.md](incident-cascade.md).
+
 ## 2026-08-05 (media bypass)
 
 - Entry domestic bypass: кино/сериалы. Явно `geosite:category-entertainment-ru` (ivi/okko/kinopoisk/…) + домены `bumazhniy-dom.com` (жалоба), more.tv, megogo, premier.one, kinorium, CDN (ivicdn/cdnvideohub/kinescope/trbcdn). Иначе .com-порталы уходили в NL hop → geo/VPN block.
