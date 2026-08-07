@@ -57,6 +57,31 @@ Ops-события: `/var/log/xeno/events.jsonl` — см. [observability.md](ob
 
 Выдача 30/90/365, список, диагностика по `@nick` — только админам из env.
 
+## Постоянный бан
+
+`banned_users` в SQLite: бан по `tg_id` и/или `@username` (без учёта регистра).  
+Блокирует `claim_demo` / `grant_access` навсегда; `has_access` → false; в боте экран «Доступ закрыт».
+
+На NL (после `deploy_bot.py`):
+
+```bash
+cd /etc/runaway/xeno.net/bot
+set -a && . ../config/bridge.env && . ../config/bot.env && . ../config/ru-ssh.env && set +a
+../.venv/bin/python - <<'PY'
+from config import load_settings
+from db import Database
+from provision import ban_and_purge, sub_url_user, write_access_sub, sync_all
+
+s = load_settings(require_token=False)
+db = Database(s.db_path)
+print(ban_and_purge(db, s, username="ice1477", reason="ops"))
+# refresh existing sub (без ротации UUID):
+# u = db.get_by_username("xenoworth"); write_access_sub(s, u.sub_token, u.client_uuid); sync_all(db, s, rewrite_subs=True); print(sub_url_user(s, u))
+PY
+```
+
+`ban_and_purge`: деактивирует rows, удаляет каталоги sub-токенов, `sync_all` убирает UUID из inbound’ов.
+
 ## Диалог (поддержка)
 
 Клиент пишет через **Поддержка → Написать нам** или `/dialog`.  

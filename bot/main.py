@@ -91,6 +91,8 @@ class TgBot:
         return kb.help_actions(donate=self.has_donate())
 
     def has_access(self, tg_id: int) -> bool:
+        if self.db.is_banned(tg_id):
+            return False
         user = self.db.get(tg_id)
         return user is not None and user.is_active
 
@@ -235,12 +237,17 @@ class TgBot:
         strip_reply_kb: bool = False,
         force_new: bool = False,
     ) -> None:
-        has = self.has_access(tg_id)
-        text = msg.home(
-            demo_days=self.settings.demo_days,
-            has_access=has,
-        )
-        markup = kb.home(godmode=self.is_god(tg_id), has_access=has)
+        banned = self.db.is_banned(tg_id)
+        if banned:
+            text = msg.access_banned()
+            markup = kb.home(godmode=False, has_access=False, banned=True)
+        else:
+            has = self.has_access(tg_id)
+            text = msg.home(
+                demo_days=self.settings.demo_days,
+                has_access=has,
+            )
+            markup = kb.home(godmode=self.is_god(tg_id), has_access=has)
         if force_new:
             message_id = None
         if message_id is not None:
@@ -325,7 +332,16 @@ class TgBot:
             user = await asyncio.to_thread(
                 provision_demo, self.db, self.settings, tg_id, username
             )
-        except PermissionError:
+        except PermissionError as exc:
+            if str(exc) == "banned" or self.db.is_banned(tg_id, username):
+                await self.screen(
+                    session,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=msg.access_banned(),
+                    markup=kb.back_home(),
+                )
+                return
             existing = self.db.get(tg_id)
             if existing and existing.is_active:
                 try:
@@ -392,6 +408,16 @@ class TgBot:
         message_id: int | None,
         tg_id: int,
     ) -> None:
+        if self.db.is_banned(tg_id):
+            await self.screen(
+                session,
+                chat_id=chat_id,
+                message_id=message_id,
+                text=msg.access_banned(),
+                markup=kb.home(banned=True),
+                force_new=True,
+            )
+            return
         user = self.db.get(tg_id)
         if not user:
             await self.screen(
@@ -491,16 +517,21 @@ class TgBot:
             )
         except PermissionError as exc:
             err = str(exc)
-            if "already" in err or "limit" in err:
+            if err == "banned" or self.db.is_banned(tg_id):
+                text = msg.access_banned()
+                markup = kb.home(banned=True)
+            elif "already" in err or "limit" in err:
                 text = msg.second_already()
+                markup = self._access_markup(tg_id)
             else:
                 text = msg.second_need_first()
+                markup = self._access_markup(tg_id)
             await self.screen(
                 session,
                 chat_id=chat_id,
                 message_id=message_id,
                 text=text,
-                markup=self._access_markup(tg_id),
+                markup=markup,
             )
             return
         except Exception:

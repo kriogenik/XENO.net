@@ -480,6 +480,71 @@ def sync_all(db: Database, settings: Settings, *, rewrite_subs: bool = True) -> 
         )
 
 
+def ban_and_purge(
+    db: Database,
+    settings: Settings,
+    *,
+    tg_id: int | None = None,
+    username: str | None = None,
+    reason: str = "",
+    banned_by: int | None = None,
+) -> dict:
+    """Permanent ban: DB row, deactivate access, delete sub dirs, sync Xray/3x-ui."""
+    user = db.get(tg_id) if tg_id is not None else None
+    if user is None and username:
+        user = db.get_by_username(username)
+    if user is None and tg_id is None:
+        raise LookupError(f"user not found: {username!r}")
+    if user is None:
+        # Ban by tg_id even if never claimed — still blocks future demo.
+        assert tg_id is not None
+        db.ban_user(tg_id=tg_id, username=username, reason=reason, banned_by=banned_by)
+        sync_all(db, settings, rewrite_subs=True)
+        return {"tg_id": tg_id, "username": username, "had_access": False}
+
+    tokens = [user.sub_token]
+    for link in db.list_user_links(user.tg_id):
+        tokens.append(link.sub_token)
+    # list_user_links only active — also collect inactive after ban? ban deactivates first
+    # Get tokens BEFORE ban
+    with db._conn() as con:  # noqa: SLF001
+        rows = con.execute(
+            "SELECT sub_token FROM user_links WHERE tg_id = ?", (user.tg_id,)
+        ).fetchall()
+    for r in rows:
+        if r["sub_token"] not in tokens:
+            tokens.append(r["sub_token"])
+
+    db.ban_user(
+        tg_id=user.tg_id,
+        username=username or user.username,
+        reason=reason,
+        banned_by=banned_by,
+    )
+    for tok in tokens:
+        try:
+            remove_access_sub(settings, tok)
+        except (FileNotFoundError, ValueError, OSError) as exc:
+            _append_provision_log(f"ban remove sub warn tg={user.tg_id}: {exc}")
+    sync_all(db, settings, rewrite_subs=True)
+    _append_provision_log(
+        f"BAN tg_id={user.tg_id} username={username or user.username} reason={reason!r}"
+    )
+    emit_ops(
+        "user_ban",
+        tg_id=user.tg_id,
+        username=(username or user.username or "")[:64],
+        reason=(reason or "")[:200],
+        banned_by=banned_by,
+    )
+    return {
+        "tg_id": user.tg_id,
+        "username": username or user.username,
+        "had_access": True,
+        "tokens_removed": len(tokens),
+    }
+
+
 def provision_demo(db: Database, settings: Settings, tg_id: int, username: str | None) -> User:
     user, _created = db.claim_demo(tg_id, username, settings.demo_days)
     assert user is not None

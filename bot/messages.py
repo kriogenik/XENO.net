@@ -176,6 +176,15 @@ def access_none() -> str:
     )
 
 
+def access_banned() -> str:
+    return (
+        _header("Доступ закрыт")
+        + "Доступ к XENO для вашего аккаунта закрыт навсегда.\n\n"
+        + "Демо и новые ключи недоступны.\n"
+        + "Если это ошибка — напишите в поддержку."
+    )
+
+
 def access_active(
     *,
     user: User,

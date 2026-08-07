@@ -6,6 +6,12 @@
 
 ## 2026-08
 
+## 2026-08-07 (permanent ban + ice1477)
+
+- Таблица `banned_users`, `ban_and_purge` (DB + удаление sub dirs + sync Xray/3x-ui).
+- `claim_demo` / `grant_access` / `has_access` блокируют бан навсегда; UX «Доступ закрыт».
+- Ops: [bot.md](bot.md) § Постоянный бан.
+
 ## 2026-08-07 (RU Reality retarget → timeweb.cloud)
 
 - Entry Timeweb AS9123: SNI/`dest` был `dl.google.com` (гео/ASN mismatch → ТСПУ легче режет). Скан с VPS: `timeweb.cloud` ~0.7 ms.

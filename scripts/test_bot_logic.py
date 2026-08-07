@@ -29,6 +29,32 @@ def test_demo_once() -> None:
         print("OK demo once-per-tg")
 
 
+def test_permanent_ban() -> None:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        db = Database(Path(tmp) / "t.db")
+        u, _ = db.claim_demo(777, "ice1477", 30)
+        assert u.is_active
+        db.ban_user(tg_id=777, username="ice1477", reason="abuse")
+        assert db.is_banned(777)
+        assert db.is_banned(username="Ice1477")
+        assert db.is_banned(username="@ice1477")
+        banned_user = db.get(777)
+        assert banned_user is not None and not banned_user.is_active
+        try:
+            db.claim_demo(777, "ice1477", 30)
+            raise AssertionError("banned tg must not reclaim demo")
+        except PermissionError as exc:
+            assert str(exc) == "banned"
+        try:
+            db.grant_access(tg_id=888, username="ice1477", days=30, plan="issued-30")
+            raise AssertionError("banned username must not get grant")
+        except PermissionError as exc:
+            assert str(exc) == "banned"
+        assert "закрыт" in msg.access_banned().lower()
+        assert "Подключиться" not in str(kb.home(banned=True))
+        print("OK permanent ban blocks demo/grant")
+
+
 def test_issued_god() -> None:
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         db = Database(Path(tmp) / "t.db")
@@ -501,6 +527,7 @@ def test_sub_response_headers_no_autoconnect() -> None:
 
 def main() -> int:
     test_demo_once()
+    test_permanent_ban()
     test_issued_god()
     test_second_link_additive()
     test_second_link_revoke()

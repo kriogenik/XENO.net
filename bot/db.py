@@ -282,6 +282,23 @@ class Database:
             ):
                 if col not in hop_cols:
                     con.execute(f"ALTER TABLE diag_hop_daily ADD COLUMN {col} {decl}")
+            con.execute(
+                """
+                CREATE TABLE IF NOT EXISTS banned_users (
+                  tg_id INTEGER NOT NULL PRIMARY KEY,
+                  username TEXT,
+                  reason TEXT NOT NULL DEFAULT '',
+                  banned_at INTEGER NOT NULL,
+                  banned_by INTEGER
+                )
+                """
+            )
+            con.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_banned_users_username
+                ON banned_users(username)
+                """
+            )
 
     def _user(self, row: sqlite3.Row | None) -> User | None:
         return User(**dict(row)) if row else None
@@ -310,6 +327,65 @@ class Database:
                 (uname,),
             ).fetchone()
         return self._user(row)
+
+    def is_banned(self, tg_id: int | None = None, username: str | None = None) -> bool:
+        """Permanent ban: by tg_id and/or username (case-insensitive, no @)."""
+        uname = username.lstrip("@").lower() if username else None
+        with self._conn() as con:
+            if tg_id is not None:
+                row = con.execute(
+                    "SELECT 1 FROM banned_users WHERE tg_id = ? LIMIT 1", (int(tg_id),)
+                ).fetchone()
+                if row:
+                    return True
+            if uname:
+                row = con.execute(
+                    "SELECT 1 FROM banned_users WHERE lower(username) = ? LIMIT 1",
+                    (uname,),
+                ).fetchone()
+                if row:
+                    return True
+        return False
+
+    def ban_user(
+        self,
+        *,
+        tg_id: int,
+        username: str | None = None,
+        reason: str = "",
+        banned_by: int | None = None,
+    ) -> None:
+        """Record permanent ban and soft-disable access rows (caller must sync Xray)."""
+        now = int(time.time())
+        uname = username.lstrip("@").lower() if username else None
+        existing = self.get(tg_id)
+        if existing and existing.username and not uname:
+            uname = existing.username.lstrip("@").lower()
+        with self._conn() as con:
+            con.execute(
+                """
+                INSERT INTO banned_users (tg_id, username, reason, banned_at, banned_by)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(tg_id) DO UPDATE SET
+                  username = COALESCE(excluded.username, banned_users.username),
+                  reason = excluded.reason,
+                  banned_at = excluded.banned_at,
+                  banned_by = excluded.banned_by
+                """,
+                (int(tg_id), uname, reason or "", now, banned_by),
+            )
+            con.execute(
+                "UPDATE users SET active = 0, expires_at = ? WHERE tg_id = ?",
+                (now, int(tg_id)),
+            )
+            con.execute(
+                "UPDATE user_links SET active = 0 WHERE tg_id = ?",
+                (int(tg_id),),
+            )
+            con.execute(
+                "UPDATE issued_links SET active = 0 WHERE assigned_tg_id = ?",
+                (int(tg_id),),
+            )
 
     def count_active_users(self) -> int:
         now = int(time.time())
@@ -429,6 +505,8 @@ class Database:
         If slot 2 was revoked earlier (active=0), revive the row with fresh credentials
         so UNIQUE(tg_id, slot) does not block a new device.
         """
+        if self.is_banned(tg_id):
+            raise PermissionError("banned")
         user = self.get(tg_id)
         if not user or not user.is_active:
             raise PermissionError("no active access")
@@ -611,6 +689,8 @@ class Database:
             con.execute("UPDATE issued_links SET active = 0 WHERE id = ?", (link_id,))
 
     def claim_demo(self, tg_id: int, username: str | None, days: int) -> tuple[User, bool]:
+        if self.is_banned(tg_id, username):
+            raise PermissionError("banned")
         existing = self.get(tg_id)
         if existing and existing.demo_claimed:
             raise PermissionError("demo already claimed")
@@ -652,6 +732,8 @@ class Database:
         plan: str,
     ) -> User:
         """Admin/godmode grant or extend access for a concrete Telegram user."""
+        if self.is_banned(tg_id, username):
+            raise PermissionError("banned")
         now = int(time.time())
         expires = now + days * 86400
         uname = username.lstrip("@") if username else None

@@ -85,8 +85,13 @@ def link(text: str, url: str) -> dict:
     return {"text": text, "url": url}
 
 
-def home(*, godmode: bool = False, has_access: bool = False) -> dict:
-    if has_access:
+def home(*, godmode: bool = False, has_access: bool = False, banned: bool = False) -> dict:
+    if banned:
+        rows = [
+            [btn("❓ Поддержка", CB_HELP), btn("📜 Политика", CB_POLICY)],
+            [btn("📡 Статус", CB_STATUS)],
+        ]
+    elif has_access:
         rows = [
             [btn("🔑 Мой доступ", CB_ACCESS)],
             [btn("📱 Подключить устройство", CB_CONNECT)],
@@ -100,7 +105,7 @@ def home(*, godmode: bool = False, has_access: bool = False) -> dict:
             [btn("💎 Тарифы", CB_PRICING), btn("📡 Статус", CB_STATUS)],
             [btn("❓ Поддержка", CB_HELP), btn("📜 Политика", CB_POLICY)],
         ]
-    if godmode:
+    if godmode and not banned:
         rows.append([btn("⚙️ Godmode", CB_GOD)])
     return kb(*rows)
 
