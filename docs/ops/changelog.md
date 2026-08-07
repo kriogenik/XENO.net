@@ -6,6 +6,14 @@
 
 ## 2026-08
 
+## 2026-08-07 (xenoworth «оба профиля мёртвы» после сброса Happ)
+
+- Жалоба: свежий Happ + HTTPS sub — ни RU, ни NL Direct. Бан ice1477 **не** затронул UUID/token xenoworth.
+- Проверки: sub 2×`vless://`, `mode=stream-one`, RU `sni=timeweb.cloud`, Direct `dl.google.com`; UUID на `client-in` + `xeno-direct-in` + 3x-ui; user `active=1`, не в `banned_users`.
+- E2E с RU: Direct `:2053` и RU loopback → exit NL OK. Smoke 15:21 UTC OK.
+- Живые accepts с IP юзера (~15:24–15:30 UTC) на **обоих** path (`client-in→nl-exit` и `xeno-direct-in`). Сервер не чинили — sub перезаписали без ротации UUID/token.
+- Вывод: не wipe sync / не битый Reality; типичный клиентский кейс после reset Happ (см. common-issues / happ.md).
+
 ## 2026-08-07 (permanent ban + ice1477)
 
 - Таблица `banned_users`, `ban_and_purge` (DB + удаление sub dirs + sync Xray/3x-ui).
