@@ -6,6 +6,14 @@
 
 ## 2026-08
 
+## 2026-08-07 (cadbl4: RU «мёртв», Direct OK — не cascade)
+
+- Живые логи `tg-6941226246`: UUID на RU+NL Direct, sub URI = live Reality (pbk/sid/sni/path/`stream-one`).
+- Hop с RU: ipify → NL exit OK; `hop_canary` ok; steal `:9443`=200; другие клиенты `client-in → nl-exit` + `xeno-relay-hop` непрерывно.
+- У юзера: **12:19 UTC** длинная сессия RU (`185.97.201.22`); **13:26:57–59** четыре `accepted … [client-in → nl-exit]` (`185.97.201.67`: microsoft/cursor/opera), затем с **13:27** только `xeno-direct-in` с того же IP.
+- Классификация: **не B** (hop/keys/steal живы), **не D** (не «только DNS»), **не C** (full-path accepts были). Ближе к **A′ / выбор профиля**: entry достижим, каскад серверно цел; сессия уходит на Direct (Happ autoconnect / не удерживают 🇷🇺 RU). NL→RU ipify не считали доказательством.
+- Retarget SNI/host **не** делали — ждать «делаем», если при ручном RU 60с accepts снова ноль с их IP.
+
 ## 2026-08-07 (hop inbound mode=stream-one)
 
 - Живой NL hop inbound (`xeno-relay-in`) был `mode=auto`, тогда как RU `nl-exit` и клиентские URI — `stream-one`. Исправлено на сервере + шаблоны `nl-coexist` / `nl-relay-only` / `relay` + `sync_nl_direct_clients_local` теперь форсит `stream-one` и на hop.
