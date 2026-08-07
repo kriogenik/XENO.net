@@ -6,6 +6,20 @@
 
 ## 2026-08
 
+## 2026-08-07 (xenoworth: RU ping fail / Direct OK but slow — localize A–F)
+
+- UX: **RU ping fail**, Direct connects; Direct **скорость плохая**. Не «Happ/сеть мёртвы целиком».
+- Evidence (MSK ~18:24–18:57, тот же client IP на обоих path):
+  - **RU:** короткие пачки `accepted … [client-in → nl-exit]` (18:24, 18:30) + **1:1** hop с entry IP на те же dest; pbk/sid/path/`stream-one` = live; Reality errors 0.
+  - Затем только **Direct** (`xeno-direct-in`) непрерывно (18:50+), в т.ч. googlevideo.
+  - Другой клиент держал RU ~1ч в том же окне — entry не «мёртв для всей РФ».
+  - `path_stats` 5/15м: `accepts_ru=0`, Direct жив; `ru_hop_canary` ok; TCP RU→NL hop ~45 ms.
+  - NL: load ~0.4, Direct inbound `stream-one`/Google SNI OK; stats после restart — заметный downlink на Direct у юзера (не «accepts без байт»), средний thruput слабый.
+- **Слой:** **E** (Happ ping/failover не удерживает 🇷🇺 RU) при живом каскаде; **не A/C/D/F**. **B** не тотальный fail (handshake+hop были); soft-B (RF↔Timeweb sustain) — только если при ручном RU 60с accepts снова 0.
+- **Direct slow:** не CPU/конфиг NL; вероятнее RF→NL:2053 shaping / RTT / XHTTP single-stream. Quick server fix нет.
+- Действие: autoconnect off → вручную RU 60с (сайт, не только ping); **ту же sub**; UUID не ротировать; новый entry/retarget — только после нуля accepts в окне теста.
+- Локальный снимок: `scripts/_localize_ru_xenoworth.py` (отчёты с IP не коммитить).
+
 ## 2026-08-07 (xenoworth «оба профиля мёртвы» после сброса Happ)
 
 - Жалоба: свежий Happ + HTTPS sub — ни RU, ни NL Direct. Бан ice1477 **не** затронул UUID/token xenoworth.
