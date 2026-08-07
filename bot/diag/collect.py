@@ -23,6 +23,7 @@ from diag import (  # noqa: E402
     RU_ERROR_LOG,
 )
 from diag.digest import emit_digest, retention_cleanup  # noqa: E402
+from diag.hop_src import HOP_SRC_CANARY, HOP_SRC_RU, classify_hop_src  # noqa: E402
 from diag.parse import ParsedEvent, parse_access_line, parse_error_line  # noqa: E402
 from diag.stats import merge_traffic, query_user_traffic_local, query_user_traffic_remote  # noqa: E402
 from xray_sync import client_email  # noqa: E402
@@ -32,11 +33,30 @@ def _today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
-def _event_from_parsed(ev: ParsedEvent, *, host: str) -> dict | None:
+def _event_from_parsed(ev: ParsedEvent, *, host: str, ru_ip: str | None = None) -> dict | None:
     if ev.hop or (ev.email and ev.email == HOP_EMAIL):
-        if ev.action == "accepted":
-            return {"kind": "hop", "day": ev.day, "accepts": 1, "errors": 0, "last_seen": ev.ts}
-        return {"kind": "hop", "day": ev.day, "accepts": 0, "errors": 1, "last_seen": ev.ts}
+        accepts = 1 if ev.action == "accepted" else 0
+        errors = 0 if ev.action == "accepted" else 1
+        row: dict = {
+            "kind": "hop",
+            "day": ev.day,
+            "accepts": accepts,
+            "errors": errors,
+            "last_seen": ev.ts if accepts else None,
+            "accepts_canary": 0,
+            "accepts_ru_sourced": 0,
+            "last_seen_canary": None,
+            "last_seen_ru_sourced": None,
+        }
+        if accepts:
+            src = classify_hop_src(ev.src_ip, ru_ip=ru_ip)
+            if src == HOP_SRC_CANARY:
+                row["accepts_canary"] = 1
+                row["last_seen_canary"] = ev.ts
+            elif src == HOP_SRC_RU:
+                row["accepts_ru_sourced"] = 1
+                row["last_seen_ru_sourced"] = ev.ts
+        return row
     if not ev.email:
         return None
     accepts_ru = 0
@@ -72,8 +92,8 @@ def _event_from_parsed(ev: ParsedEvent, *, host: str) -> dict | None:
     }
 
 
-def _apply_event(db: Database, ev: ParsedEvent, *, host: str) -> None:
-    row = _event_from_parsed(ev, host=host)
+def _apply_event(db: Database, ev: ParsedEvent, *, host: str, ru_ip: str | None = None) -> None:
+    row = _event_from_parsed(ev, host=host, ru_ip=ru_ip)
     if not row:
         return
     if row["kind"] == "hop":
@@ -82,6 +102,10 @@ def _apply_event(db: Database, ev: ParsedEvent, *, host: str) -> None:
             accepts=int(row.get("accepts") or 0),
             errors=int(row.get("errors") or 0),
             last_seen=row.get("last_seen"),
+            accepts_canary=int(row.get("accepts_canary") or 0),
+            accepts_ru_sourced=int(row.get("accepts_ru_sourced") or 0),
+            last_seen_canary=row.get("last_seen_canary"),
+            last_seen_ru_sourced=row.get("last_seen_ru_sourced"),
         )
     else:
         db.diag_bump_user(
@@ -97,13 +121,15 @@ def _apply_event(db: Database, ev: ParsedEvent, *, host: str) -> None:
         )
 
 
-def _ingest_text(db: Database, text: str, *, kind: str, host: str) -> int:
+def _ingest_text(
+    db: Database, text: str, *, kind: str, host: str, ru_ip: str | None = None
+) -> int:
     batch: list[dict] = []
     for line in text.splitlines():
         ev = parse_access_line(line) if kind == "access" else parse_error_line(line)
         if not ev:
             continue
-        row = _event_from_parsed(ev, host=host)
+        row = _event_from_parsed(ev, host=host, ru_ip=ru_ip)
         if row:
             batch.append(row)
     return db.diag_apply_events(batch)
@@ -126,13 +152,15 @@ def _read_local_chunk(path: str, *, offset: int) -> tuple[str, int, str | None]:
     return text, new_off, inode
 
 
-def ingest_local_file(db: Database, source: str, path: str, *, kind: str, host: str) -> int:
+def ingest_local_file(
+    db: Database, source: str, path: str, *, kind: str, host: str, ru_ip: str | None = None
+) -> int:
     _inode, offset = db.diag_get_cursor(source)
     text, new_off, inode = _read_local_chunk(path, offset=offset)
     if inode is not None and _inode and _inode != inode and offset > 0:
         # rotated
         text, new_off, inode = _read_local_chunk(path, offset=0)
-    n = _ingest_text(db, text, kind=kind, host=host)
+    n = _ingest_text(db, text, kind=kind, host=host, ru_ip=ru_ip)
     db.diag_set_cursor(source, inode=inode, offset=new_off)
     return n
 
@@ -145,6 +173,7 @@ def ingest_remote_file(
     *,
     kind: str,
     host: str,
+    ru_ip: str | None = None,
 ) -> int:
     _inode, offset = db.diag_get_cursor(source)
     # stat + read from offset via python on remote for binary-safe seek
@@ -187,8 +216,8 @@ def ingest_remote_file(
     if inode and _inode and inode != _inode and offset > 0:
         # rotated — re-read from 0 next time by resetting once
         db.diag_set_cursor(source, inode=inode, offset=0)
-        return ingest_remote_file(db, ssh, source, path, kind=kind, host=host)
-    n = _ingest_text(db, data, kind=kind, host=host)
+        return ingest_remote_file(db, ssh, source, path, kind=kind, host=host, ru_ip=ru_ip)
+    n = _ingest_text(db, data, kind=kind, host=host, ru_ip=ru_ip)
     db.diag_set_cursor(source, inode=inode, offset=new_off)
     return n
 
@@ -235,25 +264,55 @@ def open_ru_ssh(settings: Settings) -> paramiko.SSHClient:
     return c
 
 
+def _remote_tail_lines(ssh: paramiko.SSHClient, path: str, *, max_bytes: int = 8_000_000) -> list[str]:
+    script = (
+        "python3 - <<'PY'\n"
+        "import os,sys\n"
+        f"path={path!r}\n"
+        f"max_bytes={int(max_bytes)}\n"
+        "if not os.path.exists(path):\n"
+        "  sys.exit(0)\n"
+        "size=os.path.getsize(path)\n"
+        "with open(path,'rb') as f:\n"
+        "  if size>max_bytes:\n"
+        "    f.seek(size-max_bytes); f.readline()\n"
+        "  sys.stdout.buffer.write(f.read())\n"
+        "PY"
+    )
+    _i, o, e = ssh.exec_command(script, timeout=120)
+    raw = o.read()
+    o.channel.recv_exit_status()
+    return raw.decode("utf-8", "replace").splitlines()
+
+
 def run_collect(db: Database, settings: Settings) -> dict[str, int]:
+    ru_ip = (settings.ru_public_ip or os.environ.get("RU_PUBLIC_IP") or os.environ.get("RU_BRIDGE_IP") or "").strip()
     stats = {
         "seed": seed_active_users(db),
-        "nl_access": ingest_local_file(db, "nl-access", NL_ACCESS_LOG, kind="access", host="nl"),
-        "nl_error": ingest_local_file(db, "nl-error", NL_ERROR_LOG, kind="error", host="nl"),
+        "nl_access": ingest_local_file(
+            db, "nl-access", NL_ACCESS_LOG, kind="access", host="nl", ru_ip=ru_ip or None
+        ),
+        "nl_error": ingest_local_file(
+            db, "nl-error", NL_ERROR_LOG, kind="error", host="nl", ru_ip=ru_ip or None
+        ),
         "ru_access": 0,
         "ru_error": 0,
         "stats_users": 0,
     }
     traffic_local = query_user_traffic_local()
+    ru_lines: list[str] = []
+    ru_err_lines: list[str] = []
     ssh = None
     try:
         ssh = open_ru_ssh(settings)
         stats["ru_access"] = ingest_remote_file(
-            db, ssh, "ru-access", RU_ACCESS_LOG, kind="access", host="ru"
+            db, ssh, "ru-access", RU_ACCESS_LOG, kind="access", host="ru", ru_ip=ru_ip or None
         )
         stats["ru_error"] = ingest_remote_file(
-            db, ssh, "ru-error", RU_ERROR_LOG, kind="error", host="ru"
+            db, ssh, "ru-error", RU_ERROR_LOG, kind="error", host="ru", ru_ip=ru_ip or None
         )
+        ru_lines = _remote_tail_lines(ssh, RU_ACCESS_LOG)
+        ru_err_lines = _remote_tail_lines(ssh, RU_ERROR_LOG)
         traffic_ru = query_user_traffic_remote(ssh)
         traffic = merge_traffic(traffic_local, traffic_ru)
     except Exception as exc:
@@ -263,6 +322,21 @@ def run_collect(db: Database, settings: Settings) -> dict[str, int]:
         if ssh:
             ssh.close()
     stats["stats_users"] = apply_stats(db, traffic)
+    try:
+        from diag.path_stats import _tail_lines, compute_path_stats, emit_path_stats
+
+        path = compute_path_stats(
+            ru_lines=ru_lines,
+            nl_lines=_tail_lines(NL_ACCESS_LOG),
+            ru_err=ru_err_lines,
+            nl_err=_tail_lines(NL_ERROR_LOG),
+            ru_ip=ru_ip or None,
+        )
+        emit_path_stats(path)
+        stats["path_stats"] = 1
+    except Exception as exc:
+        print(f"path_stats warn: {exc}", file=sys.stderr)
+        stats["path_stats"] = 0
     return stats
 
 

@@ -136,7 +136,7 @@ def main() -> int:
                 "streamSettings": {
                     "network": "xhttp",
                     "security": "reality",
-                    "xhttpSettings": {"path": reality["BRIDGE_PATH"], "mode": "auto"},
+                    "xhttpSettings": {"path": reality["BRIDGE_PATH"], "mode": "stream-one"},
                     "realitySettings": {
                         "serverName": reality["BRIDGE_REALITY_SNI"],
                         "fingerprint": "randomized",

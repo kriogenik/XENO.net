@@ -19,6 +19,7 @@
 | [nl-coexist.md](nl-coexist.md) | Сосуществование на одной VPS |
 | [ru-bridge.md](ru-bridge.md) | Entry-мост |
 | [incident-cascade.md](incident-cascade.md) | «RU мёртв / Direct ок» — чеклист |
+| [cascade-audit.md](cascade-audit.md) | Полный аудит + path_stats / ru_hop (когда зелёное врёт) |
 | [observability.md](observability.md) | Логи, `events.jsonl`, digests, алерты |
 | [principles.md](principles.md) | Инженерные принципы |
 | [changelog.md](changelog.md) | Краткий ops-журнал |

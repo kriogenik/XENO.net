@@ -18,6 +18,7 @@
 | После сброса Happ оба профиля «мертвы», сервер «зелёный» | В URI был `mode=auto` (XHTTP+Reality) | Подписки с `mode=stream-one`; e2e с NL ≠ Happ | Удалить профиль → свежая `https://` из бота → обновить |
 | «RU мёртв», Direct OK, но в RU логах accepts + hop 1:1 | Клиент на path, UX/healthcheck; или hop inbound был `auto` | Hop/Direct inbound = `stream-one`; не путать с «нет accepts» | Вручную **🇷🇺 RU** 30с; при нуле accepts — DNS/ISP/SNI plan |
 | «RU мёртв», Direct OK; короткие RU accepts → сразу Direct с того же IP | Happ не удерживает 🇷🇺 RU (autoconnect/failover); каскад на сервере жив | Сверить URI↔RU inbound; hop e2e с RU; чужие `client-in→nl-exit` | Autoconnect off → вручную **🇷🇺 RU** 60с; не крутить UUID; retarget SNI только после нуля accepts |
+| «У всех RU мёртв», а smoke/canary зелёные | Local canary маскировал hop quiet; `accepted` ≠ UX | `path_stats` + `hop_ru_sourced` + `ru_hop_canary`; см. [cascade-audit.md](cascade-audit.md) | `python scripts/cascade_audit.py`; вручную **🇷🇺 RU** |
 | Подписка «обновляется с задержкой» | Happ кэш / VPN включён при refresh | `Cache-Control: no-store` | VPN выкл → обновить |
 
 ## Инфраструктура vs клиент

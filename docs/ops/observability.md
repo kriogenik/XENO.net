@@ -62,15 +62,16 @@ tail -n 200 /var/log/xeno/events.jsonl | jq -r 'select(.kind=="alert_open") | [.
 
 Таймеры (не второй стек мониторинга):
 
-- `xenonet-diag-collect.timer` — 5 мин, ingest + alerts  
+- `xenonet-diag-collect.timer` — 5 мин, ingest + path_stats + alerts  
 - `xenonet-diag-smoke.timer` — 1 ч  
 - `xenonet-diag-digest.timer` — 03:10 UTC  
 - `xenonet-steal-watch.timer` — 2 мин → `python -m diag.steal_watch`  
-- `xenonet-hop-watch.timer` — 3 мин → `python -m diag.hop_watch` (Reality :8443 → SelfSteal)
+- `xenonet-hop-watch.timer` — 3 мин → local Reality canary `:8443`  
+- `xenonet-ru-hop-watch.timer` — 5 мин → RU→NL path canary  
 
 ## Алерты (Telegram)
 
-Ключи: `hop_reality` (canary ×5+ жёстких FAIL; transient curl_rc=56/52 после недавнего OK — soft-skip), `hop_stale`, `cascade_split` (RU accepts, hop quiet ≥45м), `unit_xeno_relay`, `unit_xeno_steal`, `steal_https`, `unit_bot`, `unit_sub`, `disk`, `sni_spike`, `reality_handshake_spike` (≥100/день), `sub_404_spike` (≥30/час), `smoke_fail` (×2 подряд).
+Ключи: `hop_reality` (local canary ×5+), `hop_path_ru` (RU→NL path), `hop_stale` / `cascade_split` (**только RU-sourced hop**, canary не маскирует), `cascade_ratio_break`, `short_session_spike`, `direct_migration`, `unit_xeno_relay`, `unit_xeno_steal`, `steal_https`, `unit_bot`, `unit_sub`, `disk`, `sni_spike`, `reality_handshake_spike`, `sub_404_spike`, `smoke_fail`.
 
 Цепочка (пересечения глушатся): **steal/units → hop_reality → cascade_split / hop_stale**.  
 Инцидент «все RU лежат»: [incident-cascade.md](incident-cascade.md).
@@ -105,9 +106,14 @@ tail -n 200 /var/log/xeno/events.jsonl | jq -r 'select(.kind=="alert_open") | [.
 
 - Нет MITM и **нет логов destinations** (куда ходил клиент) — политика privacy.  
 - SelfSteal = dedicated nginx на `:9443` (`access_log off`); здоровье — HTTPS probe + `xenonet-steal-watch`.
-- Hop Reality = локальный canary (`hop_canary.json` + `xenonet-hop-watch`): VLESS на `:8443` → HTTP `127.0.0.1:19443` (исключение из private-block). Чужие URL не трогает.  
+- Hop Reality **local** canary (`hop_canary.json`): VLESS на `127.0.0.1:8443` → HTTP `:19443`. **Не** доказывает RU→NL.  
+- **RU→NL path canary** (`ru_hop_canary.json`, таймер `xenonet-ru-hop-watch`): probe с entry через `nl-exit` → публичный `:8443` → ipify. Алерт `hop_path_ru`.  
+- **`path_stats`** (`/var/log/xeno/path_stats.json`, kind `path_stats` в events): unique/accepts RU / nl-exit / Direct; `hop_canary` vs `hop_ru_sourced`; short_session_ratio. Алерты: `cascade_ratio_break`, `short_session_spike`, `direct_migration`.  
+- **`cascade_split` / `hop_stale`** считают тишину только по **RU-sourced** hop accepts — local canary больше не маскирует split.  
+- `accepted` ≠ UX: смотри path_stats + session flap, не только smoke TCP.  
 - HY2: unit есть, отдельного access-журнала в продукте нет (сейчас parked).  
 - Нет Prometheus/Sentry/APM — files + Telegram + digest.  
-- SSH mid-sync: `sync_all_error` + journal; полный SSH transcript не пишем.
 
-См. также: [incident-cascade.md](incident-cascade.md), [runbook.md](runbook.md), [common-issues.md](common-issues.md), [bot.md](bot.md).
+Аудит one-shot: `python scripts/cascade_audit.py` (фазы 0–5, отчёт `scripts/_cascade_audit_report.json`).
+
+См. также: [incident-cascade.md](incident-cascade.md), [runbook.md](runbook.md), [common-issues.md](common-issues.md), [cascade-audit.md](cascade-audit.md).

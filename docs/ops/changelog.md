@@ -6,6 +6,12 @@
 
 ## 2026-08
 
+## 2026-08-07 (cascade audit + telemetry blind spots)
+
+- Полный аудит (`scripts/cascade_audit.py`): RU→hop **1:1** (`hop_ru_sourced`), pair keys/`stream-one` OK, `ru_hop` probe OK. Direct accepts ≫ RU unique — клиенты часто на backup, каскад серверно жив.
+- **Закрыты дыры:** `path_stats` (canary vs RU-sourced hop); `cascade_split`/`hop_stale` больше не маскируются local canary; таймер `xenonet-ru-hop-watch`; classify XHTTP EOF/version; smoke учитывает `ru_hop_path` + path cascade.
+- Docs: [cascade-audit.md](cascade-audit.md), observability/principles.
+
 ## 2026-08-07 (cadbl4: RU «мёртв», Direct OK — не cascade)
 
 - Живые логи `tg-6941226246`: UUID на RU+NL Direct, sub URI = live Reality (pbk/sid/sni/path/`stream-one`).

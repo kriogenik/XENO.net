@@ -100,6 +100,34 @@ def run_smoke(db: Database, settings: Settings) -> dict[str, Any]:
     hop_probe = probe_hop_reality(timeout=20.0)
     checks["nl_hop_reality"] = bool(hop_probe.ok)
     checks["nl_hop_reality_detail"] = hop_probe.detail
+    try:
+        from diag.ru_hop_probe import read_state as read_ru_hop
+
+        rst = read_ru_hop()
+        if rst:
+            checks["ru_hop_path"] = bool(rst.get("ok"))
+            checks["ru_hop_path_detail"] = str(rst.get("detail") or "")
+        else:
+            # Not probed yet — soft skip until xenonet-ru-hop-watch runs.
+            checks["ru_hop_path"] = True
+            checks["ru_hop_path_detail"] = "not_probed"
+    except Exception as exc:
+        checks["ru_hop_path"] = True
+        checks["ru_hop_path_detail"] = type(exc).__name__
+    try:
+        from diag.path_stats import read_state as read_path
+
+        pst = read_path()
+        if pst:
+            sig = pst.get("signals") or {}
+            checks["path_cascade_ok"] = not bool(sig.get("cascade_ratio_break"))
+            checks["path_canary_mask_risk"] = bool(sig.get("canary_mask_risk"))
+        else:
+            checks["path_cascade_ok"] = True
+            checks["path_canary_mask_risk"] = False
+    except Exception:
+        checks["path_cascade_ok"] = True
+        checks["path_canary_mask_risk"] = False
     checks["nl_xenonet_bot"] = _unit_active("xenonet-bot")
     checks["nl_xenonet_sub"] = _unit_active("xenonet-sub")
     checks["tcp_ru_443"] = _tcp_ok(settings.ru_public_ip or settings.ru_public_host, settings.client_port)
@@ -126,6 +154,8 @@ def run_smoke(db: Database, settings: Settings) -> dict[str, Any]:
         "nl_xeno_steal",
         "nl_steal_https",
         "nl_hop_reality",
+        "ru_hop_path",
+        "path_cascade_ok",
         "nl_xenonet_bot",
         "nl_xenonet_sub",
         "ru_xray",

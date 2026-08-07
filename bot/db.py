@@ -273,6 +273,15 @@ class Database:
                 ON support_bridges(dialog_id)
                 """
             )
+            hop_cols = {r["name"] for r in con.execute("PRAGMA table_info(diag_hop_daily)").fetchall()}
+            for col, decl in (
+                ("accepts_canary", "INTEGER NOT NULL DEFAULT 0"),
+                ("accepts_ru_sourced", "INTEGER NOT NULL DEFAULT 0"),
+                ("last_seen_canary", "INTEGER"),
+                ("last_seen_ru_sourced", "INTEGER"),
+            ):
+                if col not in hop_cols:
+                    con.execute(f"ALTER TABLE diag_hop_daily ADD COLUMN {col} {decl}")
 
     def _user(self, row: sqlite3.Row | None) -> User | None:
         return User(**dict(row)) if row else None
@@ -799,23 +808,62 @@ class Database:
                 args,
             )
 
-    def diag_bump_hop(self, *, day: str, accepts: int = 0, errors: int = 0, last_seen: int | None = None) -> None:
+    def diag_bump_hop(
+        self,
+        *,
+        day: str,
+        accepts: int = 0,
+        errors: int = 0,
+        last_seen: int | None = None,
+        accepts_canary: int = 0,
+        accepts_ru_sourced: int = 0,
+        last_seen_canary: int | None = None,
+        last_seen_ru_sourced: int | None = None,
+    ) -> None:
         with self._conn() as con:
             con.execute(
                 """
-                INSERT INTO diag_hop_daily (day, accepts, errors, last_seen)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO diag_hop_daily (
+                  day, accepts, errors, last_seen,
+                  accepts_canary, accepts_ru_sourced, last_seen_canary, last_seen_ru_sourced
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(day) DO UPDATE SET
                   accepts = diag_hop_daily.accepts + excluded.accepts,
                   errors = diag_hop_daily.errors + excluded.errors,
+                  accepts_canary = diag_hop_daily.accepts_canary + excluded.accepts_canary,
+                  accepts_ru_sourced = diag_hop_daily.accepts_ru_sourced + excluded.accepts_ru_sourced,
                   last_seen = CASE
                     WHEN excluded.last_seen IS NOT NULL AND (
                       diag_hop_daily.last_seen IS NULL OR diag_hop_daily.last_seen < excluded.last_seen
                     ) THEN excluded.last_seen
                     ELSE diag_hop_daily.last_seen
+                  END,
+                  last_seen_canary = CASE
+                    WHEN excluded.last_seen_canary IS NOT NULL AND (
+                      diag_hop_daily.last_seen_canary IS NULL
+                      OR diag_hop_daily.last_seen_canary < excluded.last_seen_canary
+                    ) THEN excluded.last_seen_canary
+                    ELSE diag_hop_daily.last_seen_canary
+                  END,
+                  last_seen_ru_sourced = CASE
+                    WHEN excluded.last_seen_ru_sourced IS NOT NULL AND (
+                      diag_hop_daily.last_seen_ru_sourced IS NULL
+                      OR diag_hop_daily.last_seen_ru_sourced < excluded.last_seen_ru_sourced
+                    ) THEN excluded.last_seen_ru_sourced
+                    ELSE diag_hop_daily.last_seen_ru_sourced
                   END
                 """,
-                (day, accepts, errors, last_seen),
+                (
+                    day,
+                    accepts,
+                    errors,
+                    last_seen,
+                    accepts_canary,
+                    accepts_ru_sourced,
+                    last_seen_canary,
+                    last_seen_ru_sourced,
+                ),
             )
 
     def diag_set_user_bytes(self, day: str, email: str, *, bytes_up: int, bytes_down: int) -> None:
@@ -879,16 +927,35 @@ class Database:
                 if kind == "hop":
                     con.execute(
                         """
-                        INSERT INTO diag_hop_daily (day, accepts, errors, last_seen)
-                        VALUES (?, ?, ?, ?)
+                        INSERT INTO diag_hop_daily (
+                          day, accepts, errors, last_seen,
+                          accepts_canary, accepts_ru_sourced, last_seen_canary, last_seen_ru_sourced
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(day) DO UPDATE SET
                           accepts = diag_hop_daily.accepts + excluded.accepts,
                           errors = diag_hop_daily.errors + excluded.errors,
+                          accepts_canary = diag_hop_daily.accepts_canary + excluded.accepts_canary,
+                          accepts_ru_sourced = diag_hop_daily.accepts_ru_sourced + excluded.accepts_ru_sourced,
                           last_seen = CASE
                             WHEN excluded.last_seen IS NOT NULL AND (
                               diag_hop_daily.last_seen IS NULL OR diag_hop_daily.last_seen < excluded.last_seen
                             ) THEN excluded.last_seen
                             ELSE diag_hop_daily.last_seen
+                          END,
+                          last_seen_canary = CASE
+                            WHEN excluded.last_seen_canary IS NOT NULL AND (
+                              diag_hop_daily.last_seen_canary IS NULL
+                              OR diag_hop_daily.last_seen_canary < excluded.last_seen_canary
+                            ) THEN excluded.last_seen_canary
+                            ELSE diag_hop_daily.last_seen_canary
+                          END,
+                          last_seen_ru_sourced = CASE
+                            WHEN excluded.last_seen_ru_sourced IS NOT NULL AND (
+                              diag_hop_daily.last_seen_ru_sourced IS NULL
+                              OR diag_hop_daily.last_seen_ru_sourced < excluded.last_seen_ru_sourced
+                            ) THEN excluded.last_seen_ru_sourced
+                            ELSE diag_hop_daily.last_seen_ru_sourced
                           END
                         """,
                         (
@@ -896,6 +963,10 @@ class Database:
                             int(ev.get("accepts") or 0),
                             int(ev.get("errors") or 0),
                             ev.get("last_seen"),
+                            int(ev.get("accepts_canary") or 0),
+                            int(ev.get("accepts_ru_sourced") or 0),
+                            ev.get("last_seen_canary"),
+                            ev.get("last_seen_ru_sourced"),
                         ),
                     )
                 elif kind == "user":

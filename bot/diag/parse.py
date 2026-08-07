@@ -40,6 +40,7 @@ class ParsedEvent:
     route: str | None
     source_kind: str  # access | error
     hop: bool = False
+    src_ip: str | None = None  # raw; only for hop_src classification, never in digests as-is
 
 
 def mask_ip(ip: str) -> str:
@@ -103,6 +104,9 @@ def parse_access_line(line: str) -> ParsedEvent | None:
     if not email:
         em = _EMAIL_ANY.search(line)
         email = em.group("em") if em else None
+    if not route:
+        rm = re.search(r"\[([^\]]+)\]", line)
+        route = rm.group(1).strip() if rm else None
     err = classify_access_action(action)
     hop = bool(email and email.lower() == "xeno-relay-hop")
     return ParsedEvent(
@@ -115,6 +119,7 @@ def parse_access_line(line: str) -> ParsedEvent | None:
         route=route,
         source_kind="access",
         hop=hop,
+        src_ip=ip,
     )
 
 
@@ -151,6 +156,15 @@ def is_nl_direct_route(route: str | None) -> bool:
 def is_ru_client_route(route: str | None) -> bool:
     r = _route_host(route)
     return "client-in" in r or "nl-exit" in r or not r
+
+
+def is_ru_nl_exit_route(route: str | None) -> bool:
+    return "nl-exit" in _route_host(route)
+
+
+def is_ru_bypass_route(route: str | None) -> bool:
+    r = _route_host(route)
+    return "client-in" in r and "direct" in r and "nl-exit" not in r
 
 
 def parse_lines(lines: Iterable[str], *, kind: str) -> list[ParsedEvent]:

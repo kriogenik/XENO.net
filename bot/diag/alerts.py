@@ -34,14 +34,19 @@ REALITY_HANDSHAKE_SPIKE_THRESHOLD = 100
 DISK_PCT_THRESHOLD = 90
 HOP_STALE_SEC = 6 * 3600
 # Entry accepts but hop silent — classic hung-steal / dead :8443 cascade break.
+# Quiet is measured on RU-sourced hop accepts only (local canary ignored).
 CASCADE_SPLIT_HOP_SILENT_SEC = 45 * 60
 CASCADE_SPLIT_MIN_RU_ACCEPTS = 15
 
 # Keys we manage recovery for
 TRACKED_KEYS = (
     "hop_reality",
+    "hop_path_ru",
     "hop_stale",
     "cascade_split",
+    "cascade_ratio_break",
+    "short_session_spike",
+    "direct_migration",
     "unit_xeno_relay",
     "unit_xeno_steal",
     "steal_https",
@@ -113,7 +118,7 @@ def _fmt(ts: int | None) -> str:
 
 
 def _hop_last_seen(db: Database, *, lookback_days: int = 3) -> int | None:
-    """Latest hop accept across recent UTC days (not only today — avoids midnight false positives)."""
+    """Latest hop accept across recent UTC days (includes local canary)."""
     now = datetime.now(timezone.utc)
     best: int | None = None
     for i in range(lookback_days):
@@ -123,6 +128,25 @@ def _hop_last_seen(db: Database, *, lookback_days: int = 3) -> int | None:
         if not hops:
             continue
         ls = hops[0].get("last_seen")
+        if ls is None:
+            continue
+        ls_i = int(ls)
+        if best is None or ls_i > best:
+            best = ls_i
+    return best
+
+
+def _hop_ru_sourced_last_seen(db: Database, *, lookback_days: int = 3) -> int | None:
+    """Latest hop accept from entry IP — ignores local canary masking."""
+    now = datetime.now(timezone.utc)
+    best: int | None = None
+    for i in range(lookback_days):
+        day = (now.timestamp() - i * 86400)
+        day_s = datetime.fromtimestamp(day, tz=timezone.utc).strftime("%Y-%m-%d")
+        hops = db.diag_get_hop_days(day_s, day_s)
+        if not hops:
+            continue
+        ls = hops[0].get("last_seen_ru_sourced")
         if ls is None:
             continue
         ls_i = int(ls)
@@ -195,18 +219,19 @@ def evaluate_alerts(db: Database, settings: Settings) -> list[Alert]:
         except Exception:
             hop_reality_down = False
 
-        hop_last = _hop_last_seen(db)
-        # Log-derived signals only when live canary is not already screaming.
+        hop_ru_last = _hop_ru_sourced_last_seen(db)
+        # Log-derived signals: hop_stale / cascade_split use RU-sourced hop only
+        # so local canary cannot mask a dead client cascade.
         if not hop_reality_down:
-            if hop_last and (now - hop_last) > HOP_STALE_SEC:
-                age_h = (now - hop_last) / 3600
+            if hop_ru_last and (now - hop_ru_last) > HOP_STALE_SEC:
+                age_h = (now - hop_ru_last) / 3600
                 out.append(
                     Alert(
                         key="hop_stale",
                         fingerprint="stale",
                         text=(
-                            f"XENO alert · hop quiet ~{age_h:.0f}h "
-                            f"(last_seen {_fmt(hop_last)}). Canary OK — check clients / LTE."
+                            f"XENO alert · RU-sourced hop quiet ~{age_h:.0f}h "
+                            f"(last {_fmt(hop_ru_last)}). Local canary ignored — check clients / path."
                         ),
                     )
                 )
@@ -216,18 +241,77 @@ def evaluate_alerts(db: Database, settings: Settings) -> list[Alert]:
                 if r.get("email") == HOP_EMAIL:
                     continue
                 ru_accepts += int(r.get("accepts_ru") or 0)
-            hop_silent = (hop_last is None) or ((now - int(hop_last)) > CASCADE_SPLIT_HOP_SILENT_SEC)
+            hop_silent = (hop_ru_last is None) or (
+                (now - int(hop_ru_last)) > CASCADE_SPLIT_HOP_SILENT_SEC
+            )
             if ru_accepts >= CASCADE_SPLIT_MIN_RU_ACCEPTS and hop_silent:
                 out.append(
                     Alert(
                         key="cascade_split",
                         fingerprint="split",
                         text=(
-                            f"XENO alert · cascade split: RU accepts ×{ru_accepts} today but hop quiet "
-                            f"(last {_fmt(hop_last)}). Canary may be stale — see incident-cascade.md"
+                            f"XENO alert · cascade split: RU accepts ×{ru_accepts} today but "
+                            f"RU-sourced hop quiet (last {_fmt(hop_ru_last)}). "
+                            "Local canary does not count — see incident-cascade.md"
                         ),
                     )
                 )
+
+        try:
+            from diag.ru_hop_probe import ru_hop_alerting, read_state as read_ru_hop
+
+            rst = read_ru_hop()
+            if ru_hop_alerting(rst):
+                out.append(
+                    Alert(
+                        key="hop_path_ru",
+                        fingerprint="down",
+                        text=(
+                            f"XENO alert · RU→NL hop path FAIL ×{int(rst.get('consecutive_fail') or 0)} "
+                            f"(detail={rst.get('detail')}). Local canary may still be green."
+                        ),
+                    )
+                )
+        except Exception:
+            pass
+
+        try:
+            from diag.path_stats import read_state as read_path
+
+            pst = read_path()
+            sig = pst.get("signals") or {}
+            if sig.get("cascade_ratio_break"):
+                out.append(
+                    Alert(
+                        key="cascade_ratio_break",
+                        fingerprint="ratio",
+                        text=(
+                            "XENO alert · path_stats: nl-exit accepts without RU-sourced hop (15m). "
+                            "Cascade broken for clients; local canary may be green."
+                        ),
+                    )
+                )
+            if sig.get("short_session_spike"):
+                out.append(
+                    Alert(
+                        key="short_session_spike",
+                        fingerprint="flap",
+                        text="XENO alert · path_stats: short RU session spike (15m) — XHTTP/Happ flap?",
+                    )
+                )
+            if sig.get("direct_migration_hint"):
+                out.append(
+                    Alert(
+                        key="direct_migration",
+                        fingerprint="migrate",
+                        text=(
+                            "XENO alert · path_stats: Direct unique ≫ RU unique (15m) — "
+                            "clients on backup profile or entry unreachable."
+                        ),
+                    )
+                )
+        except Exception:
+            pass
 
     if not _unit_active("xenonet-bot"):
         out.append(
