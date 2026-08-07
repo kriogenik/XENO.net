@@ -16,6 +16,7 @@
 | Старая клавиатура бота | Telegram не обновляет inline на старых сообщениях | `/start` шлёт новое сообщение | `/start` → заново открыть экран |
 | VPN сам отваливается при открытии TG/сайта (iOS) | iOS убивает VPN-процесс по RAM | Happ → Dev Settings → **No Limit Mode**; свежий Happ | Обновить подписку, профиль **🇷🇺 RU** |
 | После сброса Happ оба профиля «мертвы», сервер «зелёный» | В URI был `mode=auto` (XHTTP+Reality) | Подписки с `mode=stream-one`; e2e с NL ≠ Happ | Удалить профиль → свежая `https://` из бота → обновить |
+| «RU мёртв», Direct OK, но в RU логах accepts + hop 1:1 | Клиент на path, UX/healthcheck; или hop inbound был `auto` | Hop/Direct inbound = `stream-one`; не путать с «нет accepts» | Вручную **🇷🇺 RU** 30с; при нуле accepts — DNS/ISP/SNI plan |
 | Подписка «обновляется с задержкой» | Happ кэш / VPN включён при refresh | `Cache-Control: no-store` | VPN выкл → обновить |
 
 ## Инфраструктура vs клиент

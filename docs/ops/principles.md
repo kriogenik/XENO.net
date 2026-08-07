@@ -12,7 +12,7 @@
 
 1. **Каскад RU→NL — критичный путь.** SelfSteal (`:9443`) и hop (`:8443`) важнее косметики бота.  
 2. **SelfSteal = nginx**, не Python `ThreadingTCPServer` (клинит под Reality-пробами).  
-3. **Клиентский XHTTP mode = `stream-one`**, не `auto`. У Happ / части сборок Xray `mode=auto` + Reality даёт «TLS ок, трафика нет» или unexpected response version. Проверка e2e с NL→RU с `auto` **не** доказывает, что Happ у пользователя жив.  
+3. **Клиентский XHTTP mode = `stream-one`**, не `auto`. У Happ / части сборок Xray `mode=auto` + Reality даёт «TLS ок, трафика нет» или unexpected response version. То же для **hop inbound** (`xeno-relay-in`) и RU `nl-exit`: держать `stream-one` в паре. Проверка e2e с NL→RU с `auto` **не** доказывает, что Happ у пользователя жив.  
 4. **Алерты без спама:** open → remind(6ч) → recover; стабильные fingerprints.  
 5. **Наблюдаемость файлами + Telegram**, не обязательный Prometheus. Журнал: `/var/log/xeno/events.jsonl` — см. [observability.md](observability.md).  
 6. **Чиним корень**, не mute. Watchdog / canary / unit Restart=always — да; «выключить алерт» — нет.

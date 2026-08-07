@@ -24,7 +24,7 @@
         "security": "reality",
         "xhttpSettings": {
           "path": "{{RELAY_PATH}}",
-          "mode": "auto"
+          "mode": "stream-one"
         },
         "realitySettings": {
           "show": false,

@@ -52,7 +52,7 @@
         "security": "reality",
         "xhttpSettings": {
           "path": "{{RELAY_PATH}}",
-          "mode": "auto"
+          "mode": "stream-one"
         },
         "realitySettings": {
           "show": false,
@@ -82,7 +82,7 @@
         "security": "reality",
         "xhttpSettings": {
           "path": "{{DIRECT_PATH}}",
-          "mode": "auto"
+          "mode": "stream-one"
         },
         "realitySettings": {
           "show": false,

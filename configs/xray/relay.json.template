@@ -24,7 +24,7 @@
         "security": "reality",
         "xhttpSettings": {
           "path": "{{BRIDGE_PATH}}",
-          "mode": "auto"
+          "mode": "stream-one"
         },
         "realitySettings": {
           "show": false,
@@ -65,7 +65,7 @@
         "security": "reality",
         "xhttpSettings": {
           "path": "{{RELAY_PATH}}",
-          "mode": "auto"
+          "mode": "stream-one"
         },
         "realitySettings": {
           "serverName": "{{RELAY_REALITY_SNI}}",

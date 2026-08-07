@@ -6,6 +6,12 @@
 
 ## 2026-08
 
+## 2026-08-07 (hop inbound mode=stream-one)
+
+- Живой NL hop inbound (`xeno-relay-in`) был `mode=auto`, тогда как RU `nl-exit` и клиентские URI — `stream-one`. Исправлено на сервере + шаблоны `nl-coexist` / `nl-relay-only` / `relay` + `sync_nl_direct_clients_local` теперь форсит `stream-one` и на hop.
+- Диагностика xenoworth: accepts на RU **есть** и бьются 1:1 с hop; sub URI ок (`ru:443` / `nl:2053`, верные pbk/sid, `stream-one`). «RU не работает» при зелёном hop ≠ «клиент не доходит» — смотреть выбор профиля / качество path, не крутить UUID.
+- NL→RU ipify по-прежнему **не** доказательство Happ в РФ.
+
 ## 2026-08-07 (hop canary spam + iOS)
 
 - Hop canary: transient `curl_rc=56/52` после недавнего OK — soft-skip (не открывает `hop_reality`); алерт только после **5** жёстких FAIL подряд (~15 мин).

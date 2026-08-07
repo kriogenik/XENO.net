@@ -65,8 +65,9 @@ systemctl is-active xray   # на RU
 После починки hop — в Happ снова выбрать **🇷🇺 RU**, не Direct.  
 Не ротировать UUID/sub без нужды.
 
-> **«Зелёный» NL e2e ≠ Happ.** Smoke/canary/NL→RU могут быть OK, а Happ всё равно без трафика: в URI был mode=auto на XHTTP+Reality (TLS есть, трафика нет / unexpected response version). Нужен mode=stream-one в sub (RU и Direct) и в xhttpSettings; после фикса — обновить подписку в Happ. См. [happ.md](../happ.md).
+> **«Зелёный» NL e2e ≠ Happ.** Smoke/canary/NL→RU могут быть OK, а Happ всё равно без трафика: в URI был mode=auto на XHTTP+Reality (TLS есть, трафика нет / unexpected response version). Нужен mode=stream-one в sub (RU и Direct), в xhttpSettings клиента **и** на hop inbound (`xeno-relay-in`). После фикса — обновить подписку в Happ. См. [happ.md](../happ.md).
 
+Если у **одного** юзера в RU логах есть `accepted … [client-in -> nl-exit]` и hop с RU IP идёт 1:1, а он говорит «RU мёртв» — это не cascade_split и не «клиент не доходит». Сначала профиль в Happ (**🇷🇺 RU**), затем качество path / SNI plan — не ротация UUID.
 ## Алерты (кто о чём)
 
 | Ключ | Смысл | Первым смотреть |

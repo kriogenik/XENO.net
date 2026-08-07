@@ -1173,7 +1173,11 @@ def sync_nl_direct_clients_local(
     config_path: str = NL_RELAY_CONFIG,
     client_emails: Mapping[str, str] | None = None,
 ) -> None:
-    """Patch xeno-direct-in clients on local NL coexist config. Leaves hop inbound intact."""
+    """Patch xeno-direct-in clients on local NL coexist config.
+
+    Also forces ``stream-one`` on hop inbound (``xeno-relay-in``): template used to
+    ship ``mode=auto``, which mismatches RU ``nl-exit`` (stream-one) and Happ docs.
+    """
     path = Path(config_path)
     if not path.exists():
         raise RuntimeError(f"NL relay config missing: {config_path}")
@@ -1187,7 +1191,8 @@ def sync_nl_direct_clients_local(
         clients = [{"id": "00000000-0000-0000-0000-000000000000", "email": "placeholder"}]
     found = False
     for inbound in cfg.get("inbounds", []):
-        if inbound.get("tag") == "xeno-direct-in":
+        tag = inbound.get("tag")
+        if tag == "xeno-direct-in":
             inbound.setdefault("settings", {})["clients"] = clients
             ss = inbound.setdefault("streamSettings", {})
             xh = ss.setdefault("xhttpSettings", {})
@@ -1195,7 +1200,11 @@ def sync_nl_direct_clients_local(
             if not xh.get("path"):
                 xh["path"] = "/"
             found = True
-            break
+        elif tag == "xeno-relay-in":
+            ss = inbound.setdefault("streamSettings", {})
+            if ss.get("network") == "xhttp" or "xhttpSettings" in ss:
+                xh = ss.setdefault("xhttpSettings", {})
+                xh["mode"] = "stream-one"
     if not found:
         raise RuntimeError("xeno-direct-in inbound missing — run scripts/deploy_backups.py first")
     cfg = _ensure_api_block(cfg)
