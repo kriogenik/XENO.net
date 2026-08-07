@@ -241,7 +241,7 @@ def load_settings(*, require_token: bool = True) -> Settings:
         sub_format=(os.environ.get("SUB_FORMAT", "links").strip().lower() or "links"),
         nl_relay_config=os.environ.get("NL_RELAY_CONFIG", "/usr/local/etc/xray/xeno-relay.json"),
         hy2_config=os.environ.get("HY2_CONFIG", "/etc/hysteria/config.yaml"),
-        reality_client_fp=os.environ.get("REALITY_CLIENT_FP", "randomized"),
+        reality_client_fp=os.environ.get("REALITY_CLIENT_FP", "chrome"),
         canary_client_uuid=(
             os.environ.get("CANARY_CLIENT_UUID", "").strip()
             or os.environ.get("BOOTSTRAP_CLIENT_UUID", "").strip()

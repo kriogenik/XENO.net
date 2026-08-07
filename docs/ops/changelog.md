@@ -6,6 +6,12 @@
 
 ## 2026-08
 
+## 2026-08-07 (hop canary spam + iOS)
+
+- Hop canary: transient `curl_rc=56/52` после недавнего OK — soft-skip (не открывает `hop_reality`); алерт только после **5** жёстких FAIL подряд (~15 мин).
+- Probe: settle + 3 retry. FP по умолчанию `chrome` (вместо `randomized`) — стабильнее Reality/iOS.
+- Docs: iOS VPN самоотключение → Happ Dev Settings → **No Limit Mode**.
+
 ## 2026-08-05 (hop Reality canary)
 
 - Живой canary `:8443`: `diag.hop_watch` каждые 3 мин — VLESS+Reality → HTTP `127.0.0.1:19443` (узкое исключение из `geoip:private`→block; иначе ложный FAIL при живом каскаде).

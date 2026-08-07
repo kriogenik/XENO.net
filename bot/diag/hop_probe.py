@@ -245,7 +245,7 @@ def _probe_locked(
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        deadline = time.monotonic() + 4.0
+        deadline = time.monotonic() + 5.0
         while time.monotonic() < deadline:
             if proc.poll() is not None:
                 return HopProbeResult(ok=False, detail="xray_exited_early", elapsed_ms=_ms(t0))
@@ -253,14 +253,17 @@ def _probe_locked(
                 with socket.create_connection(("127.0.0.1", socks_port), timeout=0.5):
                     break
             except OSError:
-                time.sleep(0.15)
+                time.sleep(0.2)
         else:
             return HopProbeResult(ok=False, detail="socks_not_ready", elapsed_ms=_ms(t0))
+
+        # Let XHTTP+Reality session settle — immediate curl often gets rc=56 under load.
+        time.sleep(0.6)
 
         curl_t = max(5, int(timeout) - 5)
         body = b""
         rc = -1
-        for attempt in range(2):
+        for attempt in range(3):
             r = subprocess.run(
                 [
                     "curl",
@@ -279,8 +282,8 @@ def _probe_locked(
             if rc == 0 and body == CANARY_BODY:
                 return HopProbeResult(ok=True, detail="canary_ok", elapsed_ms=_ms(t0))
             # Transient relay blip / peer teardown
-            if rc in (56, 52, 28) and attempt == 0:
-                time.sleep(0.8)
+            if rc in (56, 52, 28) and attempt < 2:
+                time.sleep(1.0)
                 continue
             break
         return HopProbeResult(
@@ -331,16 +334,36 @@ def read_state(path: Path = STATE_PATH) -> dict[str, Any]:
         return {}
 
 
+# curl 56/52/28 = transient relay/client teardown under load — not a dead hop.
+_TRANSIENT_DETAILS = ("canary_busy", "canary_port_busy")
+_TRANSIENT_CURL_PREFIXES = ("curl_rc=56_", "curl_rc=52_", "curl_rc=28_")
+# If hop answered OK recently, blips must not open Telegram spam.
+_TRANSIENT_GRACE_SEC = 20 * 60
+
+
+def _is_transient_fail(detail: str, *, last_ok_at: int | None, now: int) -> bool:
+    if detail in _TRANSIENT_DETAILS:
+        return True
+    if not any(detail.startswith(p) for p in _TRANSIENT_CURL_PREFIXES):
+        return False
+    if not last_ok_at:
+        return False
+    return (now - int(last_ok_at)) <= _TRANSIENT_GRACE_SEC
+
+
 def write_state(result: HopProbeResult, *, path: Path = STATE_PATH) -> dict[str, Any]:
     prev = read_state(path)
     now = int(time.time())
-    # Concurrent probe / port race — do not escalate consecutive_fail.
-    soft = result.detail in ("canary_busy", "canary_port_busy")
+    last_ok = int(prev.get("last_ok_at") or 0) or None
+    soft = (not result.ok) and _is_transient_fail(
+        result.detail, last_ok_at=last_ok, now=now
+    )
     if soft:
+        # Keep previous health for alerting; still record the blip detail.
         state = {
-            "ok": bool(prev.get("ok")),
-            "consecutive_fail": int(prev.get("consecutive_fail") or 0),
-            "last_ok_at": prev.get("last_ok_at"),
+            "ok": True if last_ok else bool(prev.get("ok")),
+            "consecutive_fail": 0 if last_ok else int(prev.get("consecutive_fail") or 0),
+            "last_ok_at": last_ok,
             "last_check_at": now,
             "detail": result.detail,
             "elapsed_ms": result.elapsed_ms,
@@ -359,7 +382,7 @@ def write_state(result: HopProbeResult, *, path: Path = STATE_PATH) -> dict[str,
         state = {
             "ok": False,
             "consecutive_fail": int(prev.get("consecutive_fail") or 0) + 1,
-            "last_ok_at": int(prev.get("last_ok_at") or 0) or None,
+            "last_ok_at": last_ok,
             "last_check_at": now,
             "detail": result.detail,
             "elapsed_ms": result.elapsed_ms,
@@ -372,15 +395,19 @@ def write_state(result: HopProbeResult, *, path: Path = STATE_PATH) -> dict[str,
 def canary_alerting(
     state: dict[str, Any] | None = None,
     *,
-    min_fails: int = 2,
-    max_age_sec: int = 15 * 60,
+    min_fails: int = 5,
+    max_age_sec: int = 20 * 60,
     now: int | None = None,
 ) -> bool:
-    """True when hop Reality canary should open an alert."""
+    """True when hop Reality canary should open an alert.
+
+    Default ≥5 consecutive *hard* fails (~15 min at 3-min timer). Transient
+    curl_rc=56/52 blips are soft-skipped in write_state when hop was recently OK.
+    """
     st = state if state is not None else read_state()
     if not st:
         return False
-    if bool(st.get("ok")):
+    if bool(st.get("ok")) or bool(st.get("soft_skip")):
         return False
     if int(st.get("consecutive_fail") or 0) < min_fails:
         return False

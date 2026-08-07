@@ -20,16 +20,18 @@ from diag.hop_probe import (  # noqa: E402
 def test_consecutive_fails_then_alert() -> None:
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
         path = Path(td) / "hop_canary.json"
-        s1 = write_state(HopProbeResult(ok=False, detail="fail1"), path=path)
-        assert s1["consecutive_fail"] == 1
-        assert not canary_alerting(s1)
-        s2 = write_state(HopProbeResult(ok=False, detail="fail2"), path=path)
-        assert s2["consecutive_fail"] == 2
-        assert canary_alerting(s2)
-        s3 = write_state(HopProbeResult(ok=True, detail="http_200"), path=path)
-        assert s3["consecutive_fail"] == 0
-        assert not canary_alerting(s3)
-        print("OK consecutive fails")
+        st = None
+        for i in range(4):
+            st = write_state(HopProbeResult(ok=False, detail=f"hard_fail_{i}"), path=path)
+            assert st["consecutive_fail"] == i + 1
+            assert not canary_alerting(st)
+        st = write_state(HopProbeResult(ok=False, detail="hard_fail_4"), path=path)
+        assert st["consecutive_fail"] == 5
+        assert canary_alerting(st)
+        st = write_state(HopProbeResult(ok=True, detail="canary_ok"), path=path)
+        assert st["consecutive_fail"] == 0
+        assert not canary_alerting(st)
+        print("OK consecutive fails need 5")
 
 
 def test_stale_state_not_alerting() -> None:
@@ -52,13 +54,28 @@ def test_soft_skip_does_not_escalate() -> None:
         assert s["ok"] is True
         assert s["consecutive_fail"] == 0
         assert not canary_alerting(s)
-        print("OK soft skip")
+        print("OK soft skip busy")
+
+
+def test_transient_curl56_soft_after_ok() -> None:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
+        path = Path(td) / "hop_canary.json"
+        write_state(HopProbeResult(ok=True, detail="canary_ok"), path=path)
+        s = write_state(
+            HopProbeResult(ok=False, detail="curl_rc=56_body=b''"), path=path
+        )
+        assert s.get("soft_skip") is True
+        assert s["ok"] is True
+        assert s["consecutive_fail"] == 0
+        assert not canary_alerting(s)
+        print("OK soft skip curl56")
 
 
 def main() -> int:
     test_consecutive_fails_then_alert()
     test_stale_state_not_alerting()
     test_soft_skip_does_not_escalate()
+    test_transient_curl56_soft_after_ok()
     return 0
 
 

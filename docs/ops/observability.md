@@ -70,7 +70,7 @@ tail -n 200 /var/log/xeno/events.jsonl | jq -r 'select(.kind=="alert_open") | [.
 
 ## Алерты (Telegram)
 
-Ключи: `hop_reality` (canary ×2+), `hop_stale`, `cascade_split` (RU accepts, hop quiet ≥45м), `unit_xeno_relay`, `unit_xeno_steal`, `steal_https`, `unit_bot`, `unit_sub`, `disk`, `sni_spike`, `reality_handshake_spike` (≥100/день), `sub_404_spike` (≥30/час), `smoke_fail` (×2 подряд).
+Ключи: `hop_reality` (canary ×5+ жёстких FAIL; transient curl_rc=56/52 после недавнего OK — soft-skip), `hop_stale`, `cascade_split` (RU accepts, hop quiet ≥45м), `unit_xeno_relay`, `unit_xeno_steal`, `steal_https`, `unit_bot`, `unit_sub`, `disk`, `sni_spike`, `reality_handshake_spike` (≥100/день), `sub_404_spike` (≥30/час), `smoke_fail` (×2 подряд).
 
 Цепочка (пересечения глушатся): **steal/units → hop_reality → cascade_split / hop_stale**.  
 Инцидент «все RU лежат»: [incident-cascade.md](incident-cascade.md).
