@@ -6,6 +6,13 @@
 
 ## 2026-08
 
+## 2026-08-07 (RU Reality retarget → timeweb.cloud)
+
+- Entry Timeweb AS9123: SNI/`dest` был `dl.google.com` (гео/ASN mismatch → ТСПУ легче режет). Скан с VPS: `timeweb.cloud` ~0.7 ms.
+- Переключены только **BRIDGE** Reality (`timeweb.cloud` + serverNames timeweb.*). **NL Direct** оставлен на Google (у пользователей работает).
+- `sync_all(rewrite_subs=True)`; клиентам обновить подписку → в URI RU `sni=timeweb.cloud`.
+- Скрипт: `scripts/retarget_reality_ru_donor.py`.
+
 ## 2026-08-07 (cascade audit + telemetry blind spots)
 
 - Полный аудит (`scripts/cascade_audit.py`): RU→hop **1:1** (`hop_ru_sourced`), pair keys/`stream-one` OK, `ru_hop` probe OK. Direct accepts ≫ RU unique — клиенты часто на backup, каскад серверно жив.

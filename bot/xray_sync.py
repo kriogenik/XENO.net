@@ -282,7 +282,7 @@ def build_hysteria2_link(
 
 
 def reality_server_names(bridge_sni: str) -> list[str]:
-    """Expand SNI list for common Google/Amazon-style Reality donors."""
+    """Expand SNI list for Reality donors (prefer same-region as entry)."""
     sni = (bridge_sni or "").strip()
     if sni in ("dl.google.com", "google.com", "www.google.com") or sni.endswith(".google.com"):
         return [
@@ -305,6 +305,14 @@ def reality_server_names(bridge_sni: str) -> list[str]:
             "www.m.amazon.com",
             "amzn.com",
         ]
+    if sni in ("timeweb.cloud", "timeweb.ru", "www.timeweb.ru") or sni.endswith(".timeweb.ru"):
+        return [
+            "timeweb.cloud",
+            "www.timeweb.ru",
+            "timeweb.ru",
+        ]
+    if sni in ("www.dns-shop.ru", "dns-shop.ru") or sni.endswith(".dns-shop.ru"):
+        return ["www.dns-shop.ru", "dns-shop.ru"]
     names = [sni] if sni else []
     if sni == "www.cloudflare.com" and "cloudflare.com" not in names:
         names.append("cloudflare.com")
