@@ -6,6 +6,16 @@
 
 ## 2026-08
 
+## 2026-08-07 (триаж «все новые ссылки мёртвые»)
+
+- Жалоба: новые sub «не поднимаются». Мандат: live triage NL+RU, без нового VPS.
+- **SelfSteal `/9443`:** nginx, Recv-Q=0, HTTPS 200. **Hop:** local canary ok, `ru_hop_canary` ok, path `/182d55ce2f74acd1` + `stream-one` совпадает RU `nl-exit` ↔ NL `xeno-relay-in`. Smoke OK.
+- **Subs:** `https://…:2080/sub/<token>/` → 200, 2×`vless://`, RU `sni=timeweb.cloud` / Direct Google, `mode=stream-one`. Токены/UUID **не** ротировали (в т.ч. xenoworth).
+- **Клиенты:** все active UUID на RU `client-in` и NL `xeno-direct-in`. Новые (напр. asS0701) серверно E2E OK: RU cascade + Direct → exit NL (пробы с RU и NL→RU; NL→RU ≠ доказательство РФ).
+- **Repair:** backup `bot.db` → `sync_all(rewrite_subs=True)` на NL. Расхождение UUID/шаблонов не найдено.
+- **Вывод:** не повтор Aug‑5 (steal hang), не wipe sync, не битый provision «только для новых». Живой трафик в логах — в основном Direct; каскад принимает (canary + редкие RU). Симптом у клиентов совпадает с Happ (ping/failover / не удерживают 🇷🇺 RU) + медленный Direct — см. запись localize A–F и [common-issues.md](common-issues.md).
+- **Клиентам:** VPN выкл → обновить **ту же** `https://` ссылку → вручную **🇷🇺 RU** на 60с (сайт, не только ping).
+
 ## 2026-08-07 (xenoworth: RU ping fail / Direct OK but slow — localize A–F)
 
 - UX: **RU ping fail**, Direct connects; Direct **скорость плохая**. Не «Happ/сеть мёртвы целиком».

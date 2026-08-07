@@ -22,6 +22,7 @@
 | Direct «работает, но очень медленно», RU красный | Backup path RF→NL:2053 (шейпинг/RTT); NL не перегружен | load/BW + Direct `stream-one`; stats uplink/downlink; не путать с «нет сети» | Сначала удержать RU; Direct — запасной, скорость чинить отдельно (не retarget RU вслепую) |
 | «У всех RU мёртв», Direct OK; IP Timeweb; spamlist чист | ТСПУ/гео-mismatch Reality (Google SNI на RU VPS) | BRIDGE donor = colocated (`timeweb.cloud`); см. retarget | Обновить подписку; профиль **🇷🇺 RU** |
 | «У всех RU мёртв», а smoke/canary зелёные | Local canary маскировал hop quiet; `accepted` ≠ UX | `path_stats` + `hop_ru_sourced` + `ru_hop_canary`; см. [cascade-audit.md](cascade-audit.md) | `python scripts/cascade_audit.py`; вручную **🇷🇺 RU** |
+| «Все новые ссылки мёртвые / не поднимаются» | Часто: сервер OK (sub 2 профиля, UUID на RU+Direct, steal/hop зелёные), клиент не удерживает RU или не обновил sub после retarget | Triage: `:9443` → hop canary → sample OLD/NEW sub → E2E xenoworth+новый UUID; `sync_all(rewrite_subs=True)` без ротации токенов | VPN выкл → обновить ту же `https://` → **🇷🇺 RU** 60с; не ждать «зелёного ping» |
 | Подписка «обновляется с задержкой» | Happ кэш / VPN включён при refresh | `Cache-Control: no-store` | VPN выкл → обновить |
 
 ## Инфраструктура vs клиент
