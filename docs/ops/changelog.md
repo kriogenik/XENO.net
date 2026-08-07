@@ -6,6 +6,16 @@
 
 ## 2026-08
 
+## 2026-08-07 (~22:00 MSK) xenoworth «ру лежит, директ лежит» — сервер НЕ down
+
+- Жалоба: оба профиля мёртвы в Happ (после ответа ~20:33 MSK «сервер OK»). Мандат: re-triage + client-mirror E2E + accepts по UUID, не списывать на Happ без пруфа.
+- **Инфра сейчас:** xray NL relay (2053/8443) + RU `:443` active; SelfSteal `:9443` Recv-Q=0 HTTPS 200; UFW 2053 Anywhere / 8443←RU; disk/OOM OK; `ru_hop_canary` + hop canary ok.
+- **Sub xenoworth:** 200, 2×`vless://`, pbk/sid/sni/path/`stream-one` = secrets = live Reality (Direct private→public MATCH; RU sid/pbk MATCH). UUID на `xeno-direct-in` и `client-in`. Токен не ротировали.
+- **E2E (параметры из sub):** с RU → Direct `:2053` → exit NL; RU loopback cascade → exit NL; с NL loopback Direct → exit NL. В access: `accepted … email: tg-7880252399` на обоих path во время пробы.
+- **Пруф «не мёртв для юзера»:** в момент триажа ESTAB на Direct с IP юзера (Wi‑Fi + mobile); accepts Direct ~18:55–18:57 UTC (Cursor/TG); RU `client-in→nl-exit` с mobile ~18:55–18:56; другие tg активно на Direct.
+- **Вывод:** не bad pbk/sid, не xray down, не UFW, не poisoned rewrite, не wipe. Симптом UX/Happ при живом туннеле — см. [common-issues.md](common-issues.md) «оба мёртвы + ESTAB/accepts». Сервер не меняли.
+- Скрипты: `scripts/_triage_both_down.py`, `scripts/_final_status.py` (отчёты `*.out.txt` не коммитить).
+
 ## 2026-08-07 (триаж «все новые ссылки мёртвые»)
 
 - Жалоба: новые sub «не поднимаются». Мандат: live triage NL+RU, без нового VPS.
