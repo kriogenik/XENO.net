@@ -39,6 +39,8 @@ HY2 может быть выключен (`HY2_ENABLED=0`).
 Cleartext `http://` бот не выдаёт (любая ОС). TLS на `:2080` (Let's Encrypt), порт `:443` Reality не трогаем.  
 Выдача: `python scripts/enable_sub_https.py`, затем `python scripts/deploy_bot.py`.
 
+На entry hostname подписки (`NL_DOMAIN`, обычно `nl.*.ru`) явно идёт в **direct** (не в hop): Reality SNI hop = тот же hostname, иначе XHTTP RST при refresh. TLS sub: только ALPN `http/1.1`. Надёжнее обновлять sub с VPN выкл.
+
 ## Безопасность репозитория
 
 Секреты и прод-инвентарь не коммитятся. См. [../open-source.md](../open-source.md).

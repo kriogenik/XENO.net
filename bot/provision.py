@@ -405,6 +405,7 @@ def sync_all(db: Database, settings: Settings, *, rewrite_subs: bool = True) -> 
             relay_port=settings.relay_port,
             client_port=settings.client_port,
             client_emails=emails,
+            nl_public_host=settings.nl_public_host,
         )
         if settings.backups_enabled:
             try:

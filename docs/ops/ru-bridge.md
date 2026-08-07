@@ -5,6 +5,8 @@
 Entry-нода принимает клиентов (VLESS + Reality + XHTTP), режет российский трафик в direct
 (`geosite:category-ru` / `category-entertainment-ru`, `geoip:ru`, плюс явные домены магазинов и медиа) и остальное отправляет на exit через внутренний hop.
 
+Исключение control-plane: `NL_DOMAIN` → **direct** (до category-ru). Нельзя слать sub через `nl-exit`, пока hop Reality `serverName` = тот же hostname — будет RST. Refresh на RU идёт cleartext entry→NL:2080; надёжнее с VPN выкл.
+
 ## Роль
 
 - DNS/hostname entry задаёте сами (`RU_DOMAIN` в локальном inventory).  

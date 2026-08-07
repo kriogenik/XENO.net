@@ -97,6 +97,11 @@
       },
       {
         "type": "field",
+        "domain": ["domain:{{NL_DOMAIN}}", "full:{{NL_DOMAIN}}"],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
         "domain": ["geosite:category-ru"],
         "outboundTag": "direct"
       },

@@ -173,6 +173,42 @@ DOMESTIC_BYPASS_DOMAINS: list[str] = [
 SyncAction = Literal["skip", "hot_add", "restart"]
 
 
+def control_plane_sub_direct_rules(
+    *,
+    nl_public_host: str = "",
+) -> list[dict]:
+    """Pin Happ subscription hostname to ``direct`` on the RU entry.
+
+    ``geosite:category-ru`` includes ``tld-ru``, so ``nl.*.ru`` already tends to
+    direct — we make that explicit and *before* other rules.
+
+    Do **not** send this host via ``nl-exit`` while hop Reality ``serverName`` is
+    the same hostname (``RELAY_REALITY_SNI=NL_DOMAIN``): XHTTP then RSTs the
+    stream («удаленный хост закрыл соединение» / unexpected EOF). Sub refresh
+    on 🇷🇺 RU must leave entry cleartext to NL:2080 (or VPN-off on the client).
+    """
+    host = (nl_public_host or "").strip().rstrip(".")
+    if not host or _looks_like_ipv4(host):
+        return []
+    return [
+        {
+            "type": "field",
+            "domain": [f"domain:{host}", f"full:{host}"],
+            "outboundTag": "direct",
+        }
+    ]
+
+
+def _looks_like_ipv4(value: str) -> bool:
+    parts = value.split(".")
+    if len(parts) != 4:
+        return False
+    try:
+        return all(0 <= int(p) <= 255 for p in parts)
+    except ValueError:
+        return False
+
+
 def domestic_bypass_routing_rules() -> list[dict]:
     """Field rules: private + RU geosite/geoip + shop/media CDN extras → direct."""
     return [
@@ -499,7 +535,18 @@ def build_happ_balancer_config(
         ]
     )
 
-    routing_rules: list[dict] = domestic_bypass_routing_rules()
+    routing_rules: list[dict] = []
+    if nl_host and not str(nl_host).replace(".", "").isdigit():
+        # Sub host is .ru (tld-ru): keep it on freedom so Happ can refresh while
+        # VPN is up without hairpin/SNI collision on the proxy path.
+        routing_rules.append(
+            {
+                "type": "field",
+                "domain": [f"domain:{nl_host}", f"full:{nl_host}"],
+                "outboundTag": "direct",
+            }
+        )
+    routing_rules.extend(domestic_bypass_routing_rules())
 
     cfg: dict = {
         "remarks": display_name,
@@ -634,6 +681,7 @@ def build_ru_config(
     client_port: int = 443,
     client_emails: Mapping[str, str] | None = None,
     loglevel: str = "warning",
+    nl_public_host: str = "",
 ) -> dict:
     """RU bridge: client XHTTP+Reality inbound + hop XHTTP+Reality to NL. No Vision."""
     seen: list[str] = []
@@ -756,6 +804,7 @@ def build_ru_config(
             "domainStrategy": "IPIfNonMatch",
             "rules": [
                 {"type": "field", "inboundTag": ["api"], "outboundTag": "api"},
+                *control_plane_sub_direct_rules(nl_public_host=nl_public_host or ""),
                 *domestic_bypass_routing_rules(),
                 {"type": "field", "network": "tcp,udp", "outboundTag": "nl-exit"},
             ],
@@ -1069,6 +1118,7 @@ def sync_xray_clients_remote(
     relay_port: int = 8443,
     client_port: int = 443,
     client_emails: Mapping[str, str] | None = None,
+    nl_public_host: str = "",
 ) -> None:
     """Push RU Xray config over SSH. Never touches NL 3x-ui / trading bot."""
     if not bridge_private_key or not relay_public_key or not relay_uuid or not bridge_path:
@@ -1090,6 +1140,7 @@ def sync_xray_clients_remote(
         relay_port=relay_port,
         client_port=client_port,
         client_emails=client_emails,
+        nl_public_host=nl_public_host,
     )
     cfg = _ensure_api_block(cfg)
 

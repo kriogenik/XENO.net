@@ -80,8 +80,8 @@ def build_sub_response_headers(*, web_page: str, is_json: bool) -> dict[str, str
     """
     content_type = "application/json; charset=utf-8" if is_json else "text/plain; charset=utf-8"
     announce = (
-        "XENO · обновите подписку и вручную выберите 🇷🇺 RU. "
-        "Если не коннектится: удалите профиль XENO → добавьте ссылку заново. "
+        "XENO · обновить sub надёжнее с VPN выкл (или Direct). "
+        "Потом вручную 🇷🇺 RU. Если не коннектится: удалите профиль → та же https:// ссылка. "
         "iOS: Dev Settings → No Limit Mode. Windows: Happ от администратора / Proxy."
         if not is_json
         else "XENO smart JSON. Если не коннектится — попросите links-формат."
@@ -135,6 +135,9 @@ def _ssl_context(cert: str, key: str) -> ssl.SSLContext | None:
         raise RuntimeError(f"SUB_TLS_CERT/KEY missing: {cert_path} / {key_path}")
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(str(cert_path), str(key_path))
+    # aiohttp is HTTP/1.1 only. If ALPN negotiates h2, clients send PRI and get
+    # BadHttpMessage / connection reset («удаленный хост закрыл соединение»).
+    ctx.set_alpn_protocols(["http/1.1"])
     return ctx
 
 

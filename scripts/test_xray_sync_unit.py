@@ -27,6 +27,7 @@ cfg = build_ru_config(
     relay_sni="www.cloudflare.com",
     relay_path="/relaypath",
     client_emails={"11111111-1111-1111-1111-111111111111": "tg-42"},
+    nl_public_host="nl.example.com",
 )
 ib = next(i for i in cfg["inbounds"] if i["tag"] == "client-in")
 ob = next(o for o in cfg["outbounds"] if o["tag"] == "nl-exit")
@@ -43,6 +44,24 @@ assert ob["streamSettings"]["security"] == "reality"
 assert ob["streamSettings"]["network"] == "xhttp"
 assert ob["streamSettings"]["xhttpSettings"]["path"] == "/relaypath"
 assert "flow" not in ob["settings"]["vnext"][0]["users"][0]
+
+# Control-plane host must stay on direct (not nl-exit): hop Reality SNI == NL_DOMAIN
+rules = cfg["routing"]["rules"]
+cp = [
+    r
+    for r in rules
+    if r.get("outboundTag") == "direct"
+    and any("nl.example.com" in str(d) for d in (r.get("domain") or []))
+]
+assert cp, rules
+idx_cp = next(i for i, r in enumerate(rules) if r in cp)
+idx_ru = next(
+    i
+    for i, r in enumerate(rules)
+    if r.get("outboundTag") == "direct"
+    and any("category-ru" in str(d) for d in (r.get("domain") or []))
+)
+assert idx_cp < idx_ru, (idx_cp, idx_ru)
 
 link = build_vless_link(
     client_uuid="11111111-1111-1111-1111-111111111111",

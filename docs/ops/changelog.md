@@ -6,6 +6,16 @@
 
 ## 2026-08
 
+## 2026-08-07 (~22:30 MSK) refresh sub на RU → «удаленный хост закрыл соединение»
+
+- **Что ломалось:** refresh `https://nl.<domain>:2080/sub/…` при включённом 🇷🇺 RU.
+- **Корни (два слоя):**
+  1. Hop Reality `serverName` = тот же `NL_DOMAIN`. Уводить sub-host в `nl-exit` → XHTTP RST / unexpected EOF (проверено e2e). Hairpin через hop **нельзя**, пока SNI hop = hostname sub.
+  2. Sub TLS: aiohttp только HTTP/1.1; без явного ALPN клиент может слать h2 PRI → обрыв («удаленный хост закрыл соединение»).
+- **Фикс:** на entry явно `NL_DOMAIN` → **direct** (до category-ru; так и задумано: cleartext RU→NL:2080). Sub: ALPN только `http/1.1`. Токены не ротировали.
+- **Клиентам:** надёжнее обновлять sub с **VPN выкл**; на RU после фикса тоже должно открываться. Обычные сайты на RU — через hop (серверно OK; в Happ держать 🇷🇺 RU вручную 60с).
+- Код: `control_plane_sub_direct_rules`, `bot/sub_server.py` ALPN, шаблон `relay.json.template`.
+
 ## 2026-08-07 (~22:00 MSK) xenoworth «ру лежит, директ лежит» — сервер НЕ down
 
 - Жалоба: оба профиля мёртвы в Happ (после ответа ~20:33 MSK «сервер OK»). Мандат: re-triage + client-mirror E2E + accepts по UUID, не списывать на Happ без пруфа.
