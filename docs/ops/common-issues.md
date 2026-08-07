@@ -15,6 +15,7 @@
 | Кино / сериалы (bumazhniy-dom и др.) видят VPN | .com-портал вне geosite → NL hop | `geosite:category-entertainment-ru` + явные media-домены → direct на entry | Профиль **🇷🇺 RU** + обновить подписку |
 | Старая клавиатура бота | Telegram не обновляет inline на старых сообщениях | `/start` шлёт новое сообщение | `/start` → заново открыть экран |
 | VPN сам отваливается при открытии TG/сайта (iOS) | iOS убивает VPN-процесс по RAM | Happ → Dev Settings → **No Limit Mode**; свежий Happ | Обновить подписку, профиль **🇷🇺 RU** |
+| После сброса Happ оба профиля «мертвы», сервер «зелёный» | В URI был `mode=auto` (XHTTP+Reality) | Подписки с `mode=stream-one`; e2e с NL ≠ Happ | Удалить профиль → свежая `https://` из бота → обновить |
 | Подписка «обновляется с задержкой» | Happ кэш / VPN включён при refresh | `Cache-Control: no-store` | VPN выкл → обновить |
 
 ## Инфраструктура vs клиент

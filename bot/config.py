@@ -169,7 +169,7 @@ def load_settings(*, require_token: bool = True) -> Settings:
         or os.environ.get("REALITY_DEST", f"{bridge_sni}:443")
     )
     bridge_path = os.environ.get("BRIDGE_PATH") or os.environ.get("XHTTP_PATH", "/xeno")
-    mode = os.environ.get("XHTTP_MODE", "auto")
+    mode = os.environ.get("XHTTP_MODE", "stream-one")
 
     relay_uuid = os.environ.get("RELAY_UUID", "")
     relay_pbk = os.environ.get("RELAY_REALITY_PUBLIC_KEY", "")

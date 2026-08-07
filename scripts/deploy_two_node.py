@@ -520,7 +520,7 @@ def build_sub(inv: dict[str, str], sec: dict[str, str]) -> str:
             "sid": sid,
             "type": "xhttp",
             "path": path,
-            "mode": "auto",
+            "mode": "stream-one",
         }
     )
     link = f"vless://{client}@{ru}:{port}?{q}#{quote('🇷🇺XENO RU')}"

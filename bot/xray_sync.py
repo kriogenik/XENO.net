@@ -244,9 +244,13 @@ def build_vless_link(
     name: str = "XENO",
     path: str = "/xeno",
     mode: str = "stream-one",
-    fingerprint: str = "randomized",
+    fingerprint: str = "chrome",
 ) -> str:
-    """Client entry: VLESS + Reality + XHTTP (no Vision). LTE-friendly fp=randomized."""
+    """Client entry: VLESS + Reality + XHTTP (no Vision).
+
+    ``mode=stream-one`` — explicit. ``auto`` breaks on Happ / some Xray builds
+    with Reality (unexpected response version / silent no-payload after TLS).
+    """
     q = urlencode(
         {
             "encryption": "none",
@@ -387,8 +391,8 @@ def build_vless_reality_xhttp_outbound(
     pbk: str,
     sid: str,
     path: str,
-    mode: str = "auto",
-    fingerprint: str = "randomized",
+    mode: str = "stream-one",
+    fingerprint: str = "chrome",
 ) -> dict:
     return {
         "tag": tag,
@@ -405,7 +409,7 @@ def build_vless_reality_xhttp_outbound(
         "streamSettings": {
             "network": "xhttp",
             "security": "reality",
-            "xhttpSettings": {"path": path or "/", "mode": mode or "auto"},
+            "xhttpSettings": {"path": path or "/", "mode": mode or "stream-one"},
             "realitySettings": {
                 "serverName": sni,
                 "fingerprint": fingerprint,
@@ -426,7 +430,7 @@ def build_happ_balancer_config(
     ru_pbk: str,
     ru_sid: str,
     ru_path: str,
-    xhttp_mode: str = "auto",
+    xhttp_mode: str = "stream-one",
     backups_enabled: bool,
     nl_host: str,
     nl_direct_port: int,
@@ -434,7 +438,7 @@ def build_happ_balancer_config(
     direct_pbk: str,
     direct_sid: str,
     direct_path: str,
-    fingerprint: str = "randomized",
+    fingerprint: str = "chrome",
 ) -> dict:
     """One Happ 'server': full Xray JSON with observatory + leastPing balancer.
 
@@ -687,7 +691,7 @@ def build_ru_config(
                     "security": "reality",
                     "xhttpSettings": {
                         "path": bridge_path,
-                        "mode": "auto",
+                        "mode": "stream-one",
                         "xPaddingBytes": "100-1000",
                     },
                     "realitySettings": {
@@ -728,7 +732,7 @@ def build_ru_config(
                 "streamSettings": {
                     "network": "xhttp",
                     "security": "reality",
-                    "xhttpSettings": {"path": relay_path, "mode": "auto"},
+                    "xhttpSettings": {"path": relay_path, "mode": "stream-one"},
                     "realitySettings": {
                         "serverName": relay_sni,
                         "fingerprint": "chrome",
@@ -1185,6 +1189,11 @@ def sync_nl_direct_clients_local(
     for inbound in cfg.get("inbounds", []):
         if inbound.get("tag") == "xeno-direct-in":
             inbound.setdefault("settings", {})["clients"] = clients
+            ss = inbound.setdefault("streamSettings", {})
+            xh = ss.setdefault("xhttpSettings", {})
+            xh["mode"] = "stream-one"
+            if not xh.get("path"):
+                xh["path"] = "/"
             found = True
             break
     if not found:

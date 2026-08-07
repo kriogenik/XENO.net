@@ -100,7 +100,7 @@ def build_client_config(*, socks_port: int, relay: dict[str, str]) -> dict[str, 
                 "streamSettings": {
                     "network": "xhttp",
                     "security": "reality",
-                    "xhttpSettings": {"path": relay["path"], "mode": "auto"},
+                    "xhttpSettings": {"path": relay["path"], "mode": "stream-one"},
                     "realitySettings": {
                         "serverName": relay["sni"],
                         "fingerprint": relay["fp"],
