@@ -80,8 +80,9 @@ def build_sub_response_headers(*, web_page: str, is_json: bool) -> dict[str, str
     """
     content_type = "application/json; charset=utf-8" if is_json else "text/plain; charset=utf-8"
     announce = (
-        "XENO · вручную выберите 🇷🇺 RU (основной). NL Direct — только запасной. "
-        "После обновления подписки удалите старый профиль, если не коннектится."
+        "XENO · обновите подписку и вручную выберите 🇷🇺 RU. "
+        "Если не коннектится: удалите профиль XENO → добавьте ссылку заново. "
+        "iOS: Dev Settings → No Limit Mode. Windows: Happ от администратора / Proxy."
         if not is_json
         else "XENO smart JSON. Если не коннектится — попросите links-формат."
     )
