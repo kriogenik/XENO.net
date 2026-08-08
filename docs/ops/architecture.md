@@ -6,11 +6,15 @@
 
 ```
 Клиент (Happ)
-  → entry :443  VLESS + Reality + XHTTP
+  → entry :443  VLESS + Reality + XHTTP (mode=stream-one)
       ├─ geoip/geosite:ru + магазины (Ozon/Magnit CDN) → direct
-      └─ остальное → hop → exit
-  запасной профиль: прямой вход на exit (отдельный порт)
+      └─ остальное → hop :8443 (Reality) → SelfSteal nginx :9443 → exit
+  запасной профиль: прямой вход на exit :2053 (Reality + XHTTP stream-one)
+  подписка: HTTPS :2080 (ALPN http/1.1), порт :443 Reality не трогаем
 ```
+
+Канон портов: client `443`, hop `8443`, direct `2053`, sub `2080`, SelfSteal `9443`.  
+Reality donor entry/Direct — из secrets (`BRIDGE_*` / `DIRECT_*`); текущий XENO-деплой: Google. Hop dest = `127.0.0.1:9443`.
 
 ## Роли нод
 

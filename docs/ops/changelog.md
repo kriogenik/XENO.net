@@ -6,6 +6,15 @@
 
 ## 2026-08
 
+## 2026-08-08 (~11:50 MSK) RESTORE — полное соответствие проектному доку
+
+- **Мандат:** вернуть live NL+RU (+ bot sub) к полному соответствию исходному проектному докy (когда спроектированная система работала). Стоп ad-hoc: timeweb flip-flop, SNI-router на `:443`, xray на `:10443`, полуприменённые retarget.
+- **SoT (побеждает changelog):** `docs/ops/architecture.md` + `principles.md` + `two-node.md` / `servers.md` + `configs/xray/*.template` + `secrets/bridge.env`. Конфликт с forensic-записью «оставить timeweb» — отвергнут: пик Aug 2–4 и текущие шаблоны = Google BRIDGE.
+- **Канон:** RU `:443` Reality `dl.google.com` + `stream-one`; hop NL `:8443` → SelfSteal **nginx** `:9443`; Direct `:2053` Google; sub `:2080` HTTPS ALPN `http/1.1`; `NL_DOMAIN`→direct. **Не** откатывали: nginx SelfSteal (вместо Python), `stream-one` (вместо `auto`).
+- **Live до/после:** уже был Google/`stream-one` после утренних фиксов; подтвердили отсутствие stream-hijack/`10443`; дубли `xray-relay`/`xeno-sub` inactive; docker caddy только `127.0.0.1:8443` (не публичный Reality). `sync_all(rewrite_subs=True)` один раз → 27/27 sub Google + `stream-one`, timeweb=0.
+- **Smoke:** Direct E2E → exit NL; RU cascade по public hostname → exit NL; sub HTTPS 200 / 2×`vless://`. Токены/UUID **не** ротировали. UFW force / 3x-ui / trading не трогали.
+- **Клиентам:** VPN выкл → один refresh той же `https://…:2080/sub/…` → вручную 🇷🇺 60с.
+
 ## 2026-08-08 (~11:40 MSK) INTERCONNECT — nginx SNI-router на RU:443 убил laptop RU
 
 - **Жалоба (TRUST):** импорт cadbl4 на мобиле мёртв; xenoworth PC на том же Wi‑Fi жил; после манипуляций с cadbl4 **laptop RU тоже умер** → гипотеза shared infra, не «Happ only».
