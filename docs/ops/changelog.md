@@ -6,6 +6,15 @@
 
 ## 2026-08
 
+## 2026-08-08 (~09:50 MSK) RESTORE Aug3-like BRIDGE — Google SNI снова (эксперимент)
+
+- **Мандат:** «снова ноль» — сравнить NOW vs пик Aug 3–4; не верить в «TSPU навсегда»; onset связывали с фиксом алертов → проверить хронологию.
+- **Пик Aug 3–4 (git/changelog/retarget notes):** BRIDGE Reality = `dl.google.com`; XHTTP default в коде = `auto`; hop SelfSteal Python `:9443`; Direct Google; sub `:2080` HTTPS; DNS/IP те же.
+- **NOW до restore:** BRIDGE = `timeweb.cloud` (retarget **Aug 7**, не «после алертов»); XHTTP = `stream-one` (Aug 7 Happ-fix); SelfSteal = **nginx** (Aug 5, после hang); hop/Direct `stream-one`; `NL_DOMAIN`→direct + ALPN `http/1.1` (Aug 7); xray **26.3.27** mtime Aug 2; DNS NL/RU = live IP.
+- **Честная причинность:** коммиты алертов Aug 5 (`ops_events`, steal-watch, hop canary) **не пишут** Reality/SNI клиентского path. Diag, что трогает сервисы: `steal_watch` (restart nginx `:9443`) и одноразовый canary-route в hop. **Вероятный infra-onset:** Aug 5 вечер SelfSteal hang; затем Aug 7 retarget/timeweb + stream-one. История «алерты → на след. день сдох» сдвинута ~на сутки и смешивает bot-obs с SelfSteal.
+- **Сделано live:** BRIDGE `dest/serverNames` → `dl.google.com` (согласованная пара); secrets+`sync_all(rewrite_subs=True)` один раз; 27/27 sub на `:2080` с `sni=dl.google.com` + `stream-one`; E2E loopback Google → exit NL; SelfSteal nginx **не** откатывали (`:9443`=200); Direct Google без изменений; токены/UUID **не** ротировали. XHTTP **`auto` не возвращали** (ломает Happ) — остался `stream-one`. Legacy `:2096` — отдельно к тому же SNI (канон всё равно `:2080`).
+- **Клиенту:** VPN выкл → refresh primary `https://nl…:2080/sub/…` → вручную **🇷🇺 RU** 60с (сайт). PC Direct должен остаться живым.
+
 ## 2026-08-08 (~09:05 MSK) Split A/B — PC Direct OK / RU «мёртв»; mobile Direct dead
 
 - **Симптом (TRUST):** PC — Direct работает, 🇷🇺 RU нигде; телефон — даже Direct нет.
