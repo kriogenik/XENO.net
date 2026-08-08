@@ -6,6 +6,16 @@
 
 ## 2026-08
 
+## 2026-08-08 (~08:25 MSK) xenoworth «пару сек и умерло — ни LTE ни Wi‑Fi, ни RU ни Direct»
+
+- **Отбой** гипотезы «LTE OK / Wi‑Fi fail» как primary: юзер уточнил — коротко поднялось, потом мёртво на обеих сетях и обоих профилях.
+- **Triage NL+RU (live):** оба VPS SSH OK, uptime ~20 мин после утреннего unpaid/restore (не повторный suspend). Disk/OOM чисты. SelfSteal `:9443` Recv‑Q=0 HTTPS 200 (не Aug‑5 hang). `xeno-relay` active, listens `:2053`/`:8443`, UFW 2053 Anywhere / 8443←RU. `xenonet-sub` `:2080` active, sub token → 200 / 2×`vless://`. RU `xray` `:443` active. Hop canary ok.
+- **E2E (после soft restart):** Direct loopback → exit NL; RU cascade (timeweb SNI) → exit NL; bad Google SNI → EOF. Токены/UUID **не** ротировали.
+- **Логи xenoworth:** ~05:22 UTC короткая пачка mobile `client-in→nl-exit` (TG/IG/WA), затем тишина; при этом до restart на NL/RU висели **ESTAB** с mobile IP на `:2053` и `:443` с большим Send‑Q (зомби‑сессии: «подключилось на секунды» → трафик встал, сокеты живы).
+- **Сделано на сервере:** soft restart `xeno-relay` + RU `xray` (сброс зомби ESTAB). Краткий самострел: ошибочно создали дубль unit `xeno-sub` поверх живого `xenonet-sub` → `:2080` упал на ~1 мин; откатили, `xenonet-sub` снова active/200.
+- **Вывод:** infra path не down. Симптом = короткая сессия + залипший клиентский туннель после restore, не «VPS выключили» и не Wi‑Fi‑ISP. Клиенту: VPN выкл → та же `https://…:2080` → вручную RU 60с (сайт); при красном UI — выкл/вкл VPN чтобы сбросить ESTAB.
+- Не считать NL canary доказательством UX на телефоне.
+
 ## 2026-08-08 (~08:10 MSK) unpaid → restore: «RU zero / Direct PC OK / mobile Direct fail»
 
 - **Billing:** оба VPS остановлены ~03:22 UTC, boot ~05:08 UTC (uptime минут после оплаты). IP **не** сменились: `ru.`/`nl.` DNS = live RU/NL. Disk RW, UFW на месте, NL SelfSteal `:9443`=200, hop canary + `ru_hop_canary` ok, `:2080` слушает.

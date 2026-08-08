@@ -28,6 +28,7 @@
 | Refresh sub на 🇷🇺 RU: «удаленный хост закрыл соединение» | (1) Hop Reality SNI = `NL_DOMAIN` — нельзя гнать sub через hop; (2) sub без ALPN `http/1.1` → h2 PRI/RST | Entry: `NL_DOMAIN` → **direct**; sub ALPN только `http/1.1` | Надёжнее: VPN выкл → та же `https://` → вручную **🇷🇺 RU**. На RU refresh тоже должен работать |
 | После unpaid/restore «всё умерло», потом PC Direct OK, RU zero | VPS suspend; либо legacy sub с **чужим SNI** на RU (Google SNI ≠ Timeweb serverNames) | Сверить DNS=IP, units, steal/hop; E2E good SNI→exit NL / bad SNI→EOF; канон sub только `:2080` | VPN выкл → **`https://nl…:2080`**, не `:2096` → **🇷🇺 RU** 60с |
 | PC Direct OK, mobile Direct fail (LTE и Wi‑Fi) | Happ/TUN/Private DNS/battery/IPv6 на телефоне; NL `:2053` жив | Accepts Direct с PC IP; mobile без ESTAB/accepts | Переимпорт sub на телефоне; Private DNS off; исключить батарею; не ротировать UUID |
+| «Пару секунд работает, потом ни RU ни Direct» (LTE+Wi‑Fi) | После unpaid/boot или сброса: короткий accept‑spike, потом зомби ESTAB (Send‑Q растёт), Happ красный | SSH/uptime, steal `:9443`, listens 2053/8443/443/2080, hop canary, E2E; accepts по email; `ss` ESTAB+Send‑Q | Soft restart relay+entry при зомби; клиент: VPN выкл→вкл, refresh `:2080`, вручную RU 60с; **не** списывать на Wi‑Fi‑ISP без пруфа «LTE accepts / Wi‑Fi zero» |
 
 ## Инфраструктура vs клиент
 

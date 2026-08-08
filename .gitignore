@@ -37,3 +37,17 @@ scripts/_check*
 scripts/_run*
 scripts/_test*
 scripts/_spot*
+scripts/_outage*
+scripts/_wifi*
+scripts/_localize*
+scripts/_triage*
+scripts/_final*
+scripts/_proof*
+scripts/_iso*
+scripts/_apply*
+scripts/_deploy*
+scripts/_scan*
+scripts/_timeline*
+scripts/_verify*
+scripts/*.out.txt
+scripts/*.raw.txt
