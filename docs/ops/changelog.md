@@ -6,6 +6,14 @@
 
 ## 2026-08
 
+## 2026-08-08 (~11:25 MSK) cadbl4 — stale RU SNI в sub после Google restore
+
+- **Жалоба:** обновил sub — не работает; паттерн PC RU ок / mobile RU нет (общий контекст).
+- **Пруф server mismatch (не Happ-лекция):** live `client-in` = `dl.google.com` + `stream-one`; xenoworth `:2080` = Google MATCH; **cadbl4 primary** `:2080` отдавал 🇷🇺 с `sni=timeweb.cloud` при том же pbk/sid/mode/UUID. Единственный timeweb-sub во флоте. UUID на RU+Direct, active, не banned, token `198005b7…` не ротировали.
+- **Логи:** cadbl4 `client-in` historically жирный (176.15.* mobile + 185.97.*); обрыв после Aug 7 (retarget/timeweb день → 120 accepts); **Aug 8 = 0** accepts RU и Direct. xenoworth в том же окне: тысячи `client-in→nl-exit` с PC `88.201.*` (каскад Google жив).
+- **Фикс:** `write_access_sub` только cadbl4 → оба профиля `sni=dl.google.com`; Reality **не** трогали; mass-retarget нет. Backup старого sub убран из `www/sub`.
+- **Клиенту cadbl4:** VPN выкл → refresh **ту же** `https://nl…:2080/sub/…` → вручную 🇷🇺 60с (сайт). Mobile: Private DNS off / батарея / TUN / переимпорт. Slot‑2 у него inactive — не путать.
+
 ## 2026-08-08 (~09:50 MSK) RESTORE Aug3-like BRIDGE — Google SNI снова (эксперимент)
 
 - **Мандат:** «снова ноль» — сравнить NOW vs пик Aug 3–4; не верить в «TSPU навсегда»; onset связывали с фиксом алертов → проверить хронологию.
