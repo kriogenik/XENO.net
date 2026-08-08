@@ -6,6 +6,18 @@
 
 ## 2026-08
 
+## 2026-08-08 (~09:05 MSK) Split A/B — PC Direct OK / RU «мёртв»; mobile Direct dead
+
+- **Симптом (TRUST):** PC — Direct работает, 🇷🇺 RU нигде; телефон — даже Direct нет.
+- **URI↔Reality:** primary + slot‑2 `:2080` → 200 / 2×`vless://`; RU `sni=timeweb.cloud` + `stream-one` == live `client-in`; Direct Google == live. **Mismatch нет** → `rewrite_subs` не делали.
+- **Cascade:** SelfSteal `:9443`=200; hop + `ru_hop_canary` ok; E2E с RU по public hostname (параметры из sub) → exit NL + YouTube 200; Direct с RU→NL:2053 → exit NL. Токены/UUID **не** ротировали.
+- **Accepts PC:** сегодня после restore были `client-in→nl-exit` (в т.ч. YouTube/Cursor ~05:08 UTC) — Reality+hop с Wi‑Fi PC **живы**. Сейчас PC сидит на Direct (пачка accepts Cursor), на RU:443 ESTAB с PC нет → профиль 🇷🇺 не удерживается / не выбирается, не «каскад лёг».
+- **Не «нужен новый RU VPS» сейчас:** критерий «zero RU accepts с PC при живом Direct» **не** выполнен (были accepts сегодня; URI ок; E2E ок). Новый ASN — только если после ручного 🇷🇺 60с снова **ноль** accepts с PC при живом Direct.
+- **Mobile Direct:** с PC Direct ESTAB/accepts есть; с mobile IP — редкие DNS/короткие, без устойчивого ESTAB → клиент Happ/TUN/OS, не down `:2053`.
+- **Legacy RU `:2096`:** unit `xeno-sub` жив, но это **старый однотокенный** bootstrap (другой token) — primary token там 404/пусто. Канон только `:2080`.
+- **Сделано live:** soft restart `xray` (RU) + `xeno-relay` (сброс Send‑Q зомби на Direct). BRIDGE остаётся `timeweb.cloud`.
+- **Клиенту:** одна ссылка для чистого импорта — **slot‑2** `:2080` (primary цел). PC: VPN выкл → refresh → вручную 🇷🇺 60с (сайт). Mobile: 3 шага ниже в ответе юзеру.
+
 ## 2026-08-08 (~08:50 MSK) FORENSICS + ROLLBACK — честно, без Happ-диагноза
 
 - **Мандат:** хватит кругов с «сервер зелёный». Читали changelog + `git log` Aug 2–8; откат рискованных конфигов на live NL+RU.
