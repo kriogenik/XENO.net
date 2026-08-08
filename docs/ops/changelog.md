@@ -6,6 +6,15 @@
 
 ## 2026-08
 
+## 2026-08-08 (~08:40 MSK) P0 «нихуя не работает» — внешний пруф + slot‑2
+
+- **Внешняя досягаемость (не curl NL→NL):** с workspace TCP OK `nl:2080`, `nl:2053`, `ru:443`; sub HTTPS 200, 2×`vless://`. С RU→NL TCP 2053/2080/8443 OK; NL→RU TCP 443 OK. OpenSSL Reality-dest: NL:2053 → `*.google.com`, RU:443 → `*.timeweb.cloud`, NL:2080 → LE `nl.…`.
+- **Health:** оба VPS uptime ~25–30 мин после утреннего unpaid/restore (boot ~05:08 UTC). Disk/load OK. `xeno-relay` `:2053`/`:8443`, `xenonet-sub` `:2080`, RU `xray` `:443`, UFW на месте. Reality pbk live == sub (Direct/RU/hop).
+- **Реальный VLESS E2E (xray client → ipify):** NL local Direct → `37.220…`; с RU: hop `:8443`, Direct hostname `:2053`, RU hostname `:443` — все три → exit NL. Access log: `tg-7880252399` / hop accepts на тесте.
+- **Ложный «всё красное» в раннем triage:** CRLF в залитых с Windows shell-скриптах рвал remote bash; плюс минутный дубль unit `xray-relay` поверх `xeno-relay` (откатили). После binary-safe прогона — зелёный.
+- **Сделано:** убран дубль unit; soft restart `xeno-relay` + RU `xray`; выдан **slot‑2** xenoworth (новый UUID/token, primary не трогали). Backup Direct на `:443` **не** добавляли — порт занят 3x-ui coexist.
+- **Клиенту сейчас:** импорт **свежей** slot‑2 ссылки (чистый профиль). Primary URL цел. Если slot‑2 тоже мёртв при зелёном E2E с VPS — это клиент/ISP на телефоне, не «сервер down»; новый RU VPS не требуется.
+
 ## 2026-08-08 (~08:25 MSK) xenoworth «пару сек и умерло — ни LTE ни Wi‑Fi, ни RU ни Direct»
 
 - **Отбой** гипотезы «LTE OK / Wi‑Fi fail» как primary: юзер уточнил — коротко поднялось, потом мёртво на обеих сетях и обоих профилях.
