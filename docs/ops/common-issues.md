@@ -30,6 +30,7 @@
 | После retarget Reality «у всех RU мёртв», Direct OK | Мы сменили donor, а клиент/legacy sub со старым SNI | Sub URI `sni` == live `serverNames`; не откатывать donor вслепую на Aug‑3 Google если E2E timeweb→exit NL | Refresh **`:2080`**; починить `:2096` под тот же SNI; `sync_all(rewrite_subs=True)` |
 | PC Direct OK, mobile Direct fail (LTE и Wi‑Fi) | Happ/TUN/Private DNS/battery/IPv6 на телефоне; NL `:2053` жив | Accepts Direct с PC IP; mobile без ESTAB/accepts | Переимпорт sub на телефоне; Private DNS off; исключить батарею; не ротировать UUID |
 | «Пару секунд работает, потом ни RU ни Direct» (LTE+Wi‑Fi) | После unpaid/boot или сброса: короткий accept‑spike, потом зомби ESTAB (Send‑Q растёт), Happ красный | SSH/uptime, steal `:9443`, listens 2053/8443/443/2080, hop canary, E2E; accepts по email; `ss` ESTAB+Send‑Q | Soft restart relay+entry при зомби; клиент: VPN выкл→вкл, refresh `:2080`, вручную RU 60с; **не** списывать на Wi‑Fi‑ISP без пруфа «LTE accepts / Wi‑Fi zero» |
+| После правки **чужого** sub «у меня на PC RU тоже умер» | Shared RU entry: nginx **stream** SNI-router на `:443` + xray уехал на `127.0.0.1:10443`; SNI=`ru.…` → docker LE, не Reality | `ss` кто на `:443`; stream-access log; bak `0.0.0.0:443`; E2E; **не** списывать на Happ, если accepts PC оборвались в минуту nginx/xray restart | Вернуть `client-in` на публичный `:443`; nginx SelfSteal только `:9443`; не держать LE/docker на том же 443 без явного Reality-совместимого preread |
 
 ## Инфраструктура vs клиент
 

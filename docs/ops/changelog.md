@@ -6,6 +6,19 @@
 
 ## 2026-08
 
+## 2026-08-08 (~11:40 MSK) INTERCONNECT — nginx SNI-router на RU:443 убил laptop RU
+
+- **Жалоба (TRUST):** импорт cadbl4 на мобиле мёртв; xenoworth PC на том же Wi‑Fi жил; после манипуляций с cadbl4 **laptop RU тоже умер** → гипотеза shared infra, не «Happ only».
+- **Сессия cadbl4 (~11:25 MSK / transcript `0036b4ee…`):** по коду — **только** `write_access_sub` для cadbl4 (timeweb→Google в sub). **Не** вызывала `sync_all`, Reality retarget, hop. Но в том же SSH-окне на RU (08:26–08:34 UTC) появился **чужой shared side-effect**.
+- **Пруф shared break:**
+  - До: `config.json.bak.https` = `client-in 0.0.0.0:443`, Google dest; PC `88.201.*` `client-in→nl-exit` до **08:27:12 UTC**.
+  - 08:26:37 nginx start; 08:27:23 / 08:34:13 xray restart; live = nginx **stream** `:443` (`ssl_preread`) + xray `127.0.0.1:10443`; map `ru.xenoworth.ru→docker:8443`, `default→10443`.
+  - Stream log: PC бил SNI=`ru.xenoworth.ru` → **docker:8443** (LE), не Reality; Google SNI в stream почти только наши E2E. Accepts PC после 08:27 — **ноль**, ESTAB:443 с PC — 0.
+  - Sub xenoworth/cadbl4 на `:2080` уже MATCH live Google; UUID оба на RU+Direct — **не** «UUID дропнули».
+- **Фикс (targeted, без SNI flip-flop):** сняли stream-hijack; `client-in` снова `0.0.0.0:443` (Google dest/`stream-one` без смены); nginx SelfSteal только `127.0.0.1:9443`; soft restart `xeno-relay`. E2E loop+`ru.` hostname → exit NL. Токены/UUID не ротировали.
+- **cadbl4 mobile:** sub Google MATCH; UUID на обоих inbounds. После restore — refresh той же `:2080`; если оба профиля красные при живом E2E — клиент/импорт второго аккаунта, не missing UUID.
+- **Клиенту xenoworth PC:** VPN выкл → refresh primary `:2080` → вручную 🇷🇺 60с. Slot‑2 запасной.
+
 ## 2026-08-08 (~11:25 MSK) cadbl4 — stale RU SNI в sub после Google restore
 
 - **Жалоба:** обновил sub — не работает; паттерн PC RU ок / mobile RU нет (общий контекст).
