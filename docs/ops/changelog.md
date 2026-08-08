@@ -6,6 +6,18 @@
 
 ## 2026-08
 
+## 2026-08-08 (~08:50 MSK) FORENSICS + ROLLBACK — честно, без Happ-диагноза
+
+- **Мандат:** хватит кругов с «сервер зелёный». Читали changelog + `git log` Aug 2–8; откат рискованных конфигов на live NL+RU.
+- **Что ломали МЫ (не unpaid / не SelfSteal hang):**
+  1. **Aug 7 Reality retarget → `timeweb.cloud`** без доводки всех поверхностей: live Reality уже timeweb, а legacy RU `:2096` ещё отдавал 🇷🇺 с `sni=dl.google.com` → handshake EOF / «VPN есть, интернета нет». Канон `:2080` был ок; bootstrap — отравлен.
+  2. **Мягкие рестарты Aug 8** → краткие дубли unit (`xray-relay` поверх `xeno-relay`, `xeno-sub` поверх `xenonet-sub`) роняли `:2080`/relay на минуты.
+  3. **Процесс:** canary/E2E с VPS выдавали за UX → gaslighting.
+- **Что НЕ откатываем (реальные инциденты / фиксы):** SelfSteal nginx (Aug 5 hang был настоящий); unpaid/restore Aug 8; `stream-one` (чинит Happ при `mode=auto`); `NL_DOMAIN`→direct + ALPN `http/1.1` (чинит refresh RST); ban ice1477 (xenoworth не трогал).
+- **Решение по SNI:** **НЕ** романтизировать Aug 3 `dl.google.com` на BRIDGE. Доказано E2E: timeweb SNI → exit NL; Google SNI против live timeweb Reality → EOF. Google был яд **mismatch на `:2096`**, не «донор убил Wi‑Fi». BRIDGE остаётся **`timeweb.cloud`**; Direct — Google.
+- **Сделано live:** backup `bot.db` → `bot.db.bak.forensic_*`; secrets/inbound согласованы (RU dest/names=timeweb, mode=`stream-one`; NL Direct Google + hop `stream-one`); `sync_all(rewrite_subs=True)` один раз; дублей `xray-relay`/`xeno-sub` нет; `:2080` ALPN `http/1.1`, primary sub 200 / 2×`vless://` (RU `sni=timeweb.cloud`, Direct `dl.google.com`); RU cascade E2E → exit NL. Токены/UUID **не** ротировали. UFW force reset **не** делали.
+- **Клиенту (primary):** обновить **ту же** primary `https://nl…:2080/sub/…` (не `:2096`) → вручную 🇷🇺 RU 60с. Slot‑2 — запасной чистый профиль, primary не заменяли.
+
 ## 2026-08-08 (~08:40 MSK) P0 «нихуя не работает» — внешний пруф + slot‑2
 
 - **Внешняя досягаемость (не curl NL→NL):** с workspace TCP OK `nl:2080`, `nl:2053`, `ru:443`; sub HTTPS 200, 2×`vless://`. С RU→NL TCP 2053/2080/8443 OK; NL→RU TCP 443 OK. OpenSSL Reality-dest: NL:2053 → `*.google.com`, RU:443 → `*.timeweb.cloud`, NL:2080 → LE `nl.…`.
