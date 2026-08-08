@@ -26,6 +26,8 @@
 | «Все новые ссылки мёртвые / не поднимаются» | Часто: сервер OK (sub 2 профиля, UUID на RU+Direct, steal/hop зелёные), клиент не удерживает RU или не обновил sub после retarget | Triage: `:9443` → hop canary → sample OLD/NEW sub → E2E xenoworth+новый UUID; `sync_all(rewrite_subs=True)` без ротации токенов | VPN выкл → обновить ту же `https://` → **🇷🇺 RU** 60с; не ждать «зелёного ping» |
 | Подписка «обновляется с задержкой» | Happ кэш / VPN включён при refresh | `Cache-Control: no-store` | VPN выкл → обновить |
 | Refresh sub на 🇷🇺 RU: «удаленный хост закрыл соединение» | (1) Hop Reality SNI = `NL_DOMAIN` — нельзя гнать sub через hop; (2) sub без ALPN `http/1.1` → h2 PRI/RST | Entry: `NL_DOMAIN` → **direct**; sub ALPN только `http/1.1` | Надёжнее: VPN выкл → та же `https://` → вручную **🇷🇺 RU**. На RU refresh тоже должен работать |
+| После unpaid/restore «всё умерло», потом PC Direct OK, RU zero | VPS suspend; либо legacy sub с **чужим SNI** на RU (Google SNI ≠ Timeweb serverNames) | Сверить DNS=IP, units, steal/hop; E2E good SNI→exit NL / bad SNI→EOF; канон sub только `:2080` | VPN выкл → **`https://nl…:2080`**, не `:2096` → **🇷🇺 RU** 60с |
+| PC Direct OK, mobile Direct fail (LTE и Wi‑Fi) | Happ/TUN/Private DNS/battery/IPv6 на телефоне; NL `:2053` жив | Accepts Direct с PC IP; mobile без ESTAB/accepts | Переимпорт sub на телефоне; Private DNS off; исключить батарею; не ротировать UUID |
 
 ## Инфраструктура vs клиент
 

@@ -6,6 +6,16 @@
 
 ## 2026-08
 
+## 2026-08-08 (~08:10 MSK) unpaid → restore: «RU zero / Direct PC OK / mobile Direct fail»
+
+- **Billing:** оба VPS остановлены ~03:22 UTC, boot ~05:08 UTC (uptime минут после оплаты). IP **не** сменились: `ru.`/`nl.` DNS = live RU/NL. Disk RW, UFW на месте, NL SelfSteal `:9443`=200, hop canary + `ru_hop_canary` ok, `:2080` слушает.
+- **Не Aug‑5 SelfSteal hang** на entry: RU Reality dest = `timeweb.cloud` (не `:9443`). Nginx на RU inactive — для текущего entry не нужен.
+- **Поезон:** legacy bootstrap sub на RU `:2096` отдавал **🇷🇺 RU с `sni=dl.google.com`** при live `serverNames=timeweb.*` → Reality handshake EOF / «VPN есть, интернета нет». Direct в том же файле с Google SNI — ок. **Канон `https://nl…:2080` уже был с `sni=timeweb.cloud`.**
+- **Фикс live:** переписали RU `:2096` sub → `sni=timeweb.cloud` + `mode=stream-one`, `systemctl restart xeno-sub`.
+- **Слой-пруф:** loopback RU + NL→RU public с timeweb SNI → `api.ipify.org` = NL exit; тот же клиент с `dl.google.com` SNI → TLS EOF. После boot у owner PC (`88.201…`) были `client-in→nl-exit` + hop 1:1 (YouTube/Cursor) — каскад для РФ-Wi‑Fi жив. Mobile IP (`81.9…`) на RU только DNS; Direct с телефона (LTE+Wi‑Fi) при живом PC Direct → **клиент Happ/OS**, не down inbound `:2053`.
+- **Честно про прошлые «всё зелёное»:** canary/E2E с VPS ≠ UX в Happ; unpaid-окно реально роняло всё; после restore серверный каскад поднялся, но отравленный legacy sub и mobile-клиент давали ложную картину «RU мёртв навсегда».
+- Клиентам: VPN выкл → обновить **`https://nl…:2080/sub/…`** (не `:2096`) → вручную **🇷🇺 RU** 60с. Mobile Direct: Private DNS off / battery / TUN / переимпорт; не крутить UUID пока PC Direct OK.
+
 ## 2026-08-07 (~22:30 MSK) refresh sub на RU → «удаленный хост закрыл соединение»
 
 - **Что ломалось:** refresh `https://nl.<domain>:2080/sub/…` при включённом 🇷🇺 RU.
